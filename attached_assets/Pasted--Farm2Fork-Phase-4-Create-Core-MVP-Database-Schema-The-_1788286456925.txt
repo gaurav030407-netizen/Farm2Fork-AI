@@ -1,0 +1,643 @@
+# Farm2Fork — Phase 4: Create Core MVP Database Schema
+
+The read-only Supabase audit has been completed successfully.
+
+CURRENT DATABASE STATUS:
+
+Supabase PostgreSQL: CONNECTED
+Database: postgres
+Schema: public
+
+Existing Farm2Fork application tables:
+
+profiles: NOT FOUND
+farmers: NOT FOUND
+buyers: NOT FOUND
+crop_listings: NOT FOUND
+orders: NOT FOUND
+order_items: NOT FOUND
+
+Existing Farm2Fork RLS: NONE
+Existing Farm2Fork indexes: NONE
+Existing Farm2Fork custom types: NONE
+Existing crop-images bucket: NOT FOUND
+
+Supabase Auth system exists and is working.
+Supabase Storage system exists.
+
+We now need to create the CORE FARM2FORK MVP DATABASE SCHEMA.
+
+IMPORTANT:
+
+Use ONLY the Supabase PostgreSQL database through SUPABASE_DATABASE_URL.
+
+Do NOT use Replit PostgreSQL.
+
+Do NOT use Replit DATABASE_URL.
+
+Do NOT modify the React frontend.
+
+Do NOT implement AI/ML yet.
+
+Do NOT implement logistics yet.
+
+Do NOT implement payments yet.
+
+Do NOT create unnecessary future tables.
+
+Use a single controlled SQL migration.
+
+Before executing the migration, inspect the database one final time to confirm that the Farm2Fork application tables still do not exist.
+
+==================================================
+1. CREATE PROFILES TABLE
+==================================================
+
+Create:
+
+profiles
+
+Fields:
+
+id
+- UUID
+- primary key
+- should reference auth.users(id)
+- ON DELETE CASCADE
+
+name
+- text
+- NOT NULL
+
+role
+- text or enum
+- NOT NULL
+- allowed values:
+  FARMER
+  BUYER
+  ADMIN
+
+mobile
+- text
+- nullable
+
+location
+- text
+- nullable
+
+created_at
+- timestamptz
+- default now()
+
+updated_at
+- timestamptz
+- default now()
+
+Requirements:
+
+- auth_user_id should NOT be duplicated unnecessarily if profiles.id itself references auth.users.id.
+- The authenticated Supabase user must map cleanly to exactly one profile.
+- Add appropriate uniqueness constraints.
+
+==================================================
+2. CREATE FARMERS TABLE
+==================================================
+
+Create:
+
+farmers
+
+Fields:
+
+id
+- UUID
+- primary key
+- generated UUID
+
+profile_id
+- UUID
+- NOT NULL
+- foreign key → profiles.id
+- ON DELETE CASCADE
+- UNIQUE
+
+farm_name
+- text
+- NOT NULL
+
+location
+- text
+- NOT NULL
+
+created_at
+- timestamptz
+- default now()
+
+A profile with role FARMER should correspond to one farmer record.
+
+==================================================
+3. CREATE BUYERS TABLE
+==================================================
+
+Create:
+
+buyers
+
+Fields:
+
+id
+- UUID
+- primary key
+- generated UUID
+
+profile_id
+- UUID
+- NOT NULL
+- foreign key → profiles.id
+- ON DELETE CASCADE
+- UNIQUE
+
+business_name
+- text
+- NOT NULL
+
+location
+- text
+- NOT NULL
+
+created_at
+- timestamptz
+- default now()
+
+A profile with role BUYER should correspond to one buyer record.
+
+==================================================
+4. CREATE CROP_LISTINGS TABLE
+==================================================
+
+Create:
+
+crop_listings
+
+Fields:
+
+id
+- UUID
+- primary key
+- generated UUID
+
+farmer_id
+- UUID
+- NOT NULL
+- foreign key → farmers.id
+- ON DELETE CASCADE
+
+crop_name
+- text
+- NOT NULL
+
+variety
+- text
+- nullable
+
+quantity
+- numeric
+- NOT NULL
+- must be greater than 0
+
+unit
+- text
+- NOT NULL
+
+price
+- numeric
+- NOT NULL
+- must be greater than or equal to 0
+
+quality
+- text
+- nullable
+
+location
+- text
+- NOT NULL
+
+harvest_date
+- date
+- nullable
+
+image_url
+- text
+- nullable
+
+status
+- text
+- NOT NULL
+- default ACTIVE
+
+Allowed status values:
+
+ACTIVE
+SOLD
+INACTIVE
+
+created_at
+- timestamptz
+- default now()
+
+updated_at
+- timestamptz
+- default now()
+
+Add appropriate CHECK constraints.
+
+Price and quantity must never be negative.
+
+==================================================
+5. CREATE ORDERS TABLE
+==================================================
+
+Create:
+
+orders
+
+Fields:
+
+id
+- UUID
+- primary key
+- generated UUID
+
+buyer_id
+- UUID
+- NOT NULL
+- foreign key → buyers.id
+- ON DELETE RESTRICT
+
+farmer_id
+- UUID
+- NOT NULL
+- foreign key → farmers.id
+- ON DELETE RESTRICT
+
+status
+- text
+- NOT NULL
+- default PENDING
+
+Allowed statuses:
+
+PENDING
+ACCEPTED
+REJECTED
+PROCESSING
+OUT_FOR_DELIVERY
+DELIVERED
+CANCELLED
+
+total_amount
+- numeric
+- NOT NULL
+- must be >= 0
+
+delivery_location
+- text
+- NOT NULL
+
+created_at
+- timestamptz
+- default now()
+
+updated_at
+- timestamptz
+- default now()
+
+==================================================
+6. CREATE ORDER_ITEMS TABLE
+==================================================
+
+Create:
+
+order_items
+
+Fields:
+
+id
+- UUID
+- primary key
+- generated UUID
+
+order_id
+- UUID
+- NOT NULL
+- foreign key → orders.id
+- ON DELETE CASCADE
+
+crop_listing_id
+- UUID
+- NOT NULL
+- foreign key → crop_listings.id
+- ON DELETE RESTRICT
+
+quantity
+- numeric
+- NOT NULL
+- greater than 0
+
+price
+- numeric
+- NOT NULL
+- greater than or equal to 0
+
+subtotal
+- numeric
+- NOT NULL
+- greater than or equal to 0
+
+created_at
+- timestamptz
+- default now()
+
+==================================================
+7. INDEXES
+==================================================
+
+Create useful indexes only.
+
+At minimum consider indexes for:
+
+farmers.profile_id
+buyers.profile_id
+crop_listings.farmer_id
+crop_listings.crop_name
+crop_listings.status
+crop_listings.location
+orders.buyer_id
+orders.farmer_id
+orders.status
+order_items.order_id
+order_items.crop_listing_id
+
+Do not create excessive indexes.
+
+==================================================
+8. ROW LEVEL SECURITY
+==================================================
+
+Enable RLS on:
+
+profiles
+farmers
+buyers
+crop_listings
+orders
+order_items
+
+Create secure policies.
+
+GENERAL RULE:
+
+Users can access their own profile.
+
+FARMERS:
+
+- Can read their own farmer profile.
+- Can create/update their own farmer profile.
+- Can create crop listings belonging to themselves.
+- Can view/update/delete their own crop listings.
+- Should NOT be able to modify another farmer's listings.
+
+BUYERS:
+
+- Can read their own buyer profile.
+- Can create/update their own buyer profile.
+- Can view ACTIVE crop listings.
+- Can create orders as themselves.
+- Can view their own orders.
+
+FARMERS:
+
+- Can view orders associated with themselves.
+- Can update order status only for orders associated with themselves.
+
+USERS:
+
+- Must NOT be able to access another user's private profile information unnecessarily.
+
+IMPORTANT:
+
+RLS must be based on auth.uid() and the profile/farmer/buyer relationships.
+
+Do NOT trust a user_id, farmer_id, or buyer_id supplied by the frontend.
+
+Do not create policies that effectively allow unrestricted access such as:
+
+USING (true)
+
+unless there is a clearly justified public-read requirement.
+
+ACTIVE crop listings may be publicly readable only if the policy is deliberately designed for that purpose.
+
+==================================================
+9. STORAGE
+==================================================
+
+Create a Supabase Storage bucket:
+
+crop-images
+
+The bucket should be appropriate for crop listing images.
+
+Do NOT expose arbitrary storage access.
+
+Create appropriate Storage RLS policies so authenticated farmers can upload/manage images associated with their listings.
+
+Do not allow users to delete other farmers' images.
+
+Do not make the entire storage system public.
+
+==================================================
+10. TRIGGERS / UPDATED_AT
+==================================================
+
+If the project already has an appropriate updated_at trigger function, reuse it.
+
+Otherwise create a safe reusable trigger function to automatically update updated_at.
+
+Apply it to:
+
+profiles
+crop_listings
+orders
+
+Do not create duplicate trigger functions if one already exists.
+
+==================================================
+11. AUTH USER → PROFILE
+
+Create a safe mechanism for creating the application profile after Supabase Auth registration.
+
+Do NOT modify Supabase Auth internals.
+
+Prefer handling profile creation through the FastAPI application unless there is already an established Supabase trigger architecture.
+
+Do not create duplicate profiles.
+
+==================================================
+12. SECURITY
+
+Do NOT:
+
+- expose service-role credentials
+- disable RLS
+- create unrestricted write policies
+- trust frontend-supplied ownership IDs
+- store passwords
+- modify auth.users directly
+- expose private user data unnecessarily
+
+==================================================
+13. MIGRATION SAFETY
+
+Before executing:
+
+- confirm Farm2Fork tables do not exist.
+
+During execution:
+
+- execute the migration against Supabase PostgreSQL only.
+- fail safely if an unexpected conflict occurs.
+- do not silently modify unrelated Supabase system schemas.
+
+After execution:
+
+- inspect the resulting schema.
+
+==================================================
+14. POST-MIGRATION VERIFICATION
+
+After migration, perform a READ-ONLY verification.
+
+Verify that these tables exist:
+
+profiles
+farmers
+buyers
+crop_listings
+orders
+order_items
+
+Verify:
+
+- primary keys
+- foreign keys
+- CHECK constraints
+- unique constraints
+- indexes
+- RLS enabled
+- RLS policies
+- triggers
+- crop-images storage bucket
+
+Verify the relationship structure:
+
+auth.users
+    ↓
+profiles
+    ↓
+farmers
+    ↓
+crop_listings
+
+auth.users
+    ↓
+profiles
+    ↓
+buyers
+    ↓
+orders
+    ↓
+order_items
+
+==================================================
+15. DO NOT BUILD THESE YET
+==================================================
+
+Do NOT create:
+
+- AI price prediction tables
+- demand forecasting tables
+- route optimization tables
+- delivery tracking tables
+- payment tables
+- notification tables
+- analytics tables
+- market history tables
+
+Those will be designed later after the core marketplace works.
+
+==================================================
+16. FINAL REPORT
+==================================================
+
+Return:
+
+DATABASE:
+Supabase connection: PASS/FAIL
+
+TABLES:
+profiles: CREATED/FAILED
+farmers: CREATED/FAILED
+buyers: CREATED/FAILED
+crop_listings: CREATED/FAILED
+orders: CREATED/FAILED
+order_items: CREATED/FAILED
+
+RELATIONSHIPS:
+[show actual foreign keys]
+
+RLS:
+profiles: ENABLED/DISABLED
+farmers: ENABLED/DISABLED
+buyers: ENABLED/DISABLED
+crop_listings: ENABLED/DISABLED
+orders: ENABLED/DISABLED
+order_items: ENABLED/DISABLED
+
+STORAGE:
+crop-images: CREATED/FAILED
+
+INDEXES:
+[summary]
+
+CONSTRAINTS:
+[summary]
+
+TRIGGERS:
+[summary]
+
+SECURITY:
+RLS policies verified: PASS/FAIL
+
+VERIFICATION:
+All tables verified: PASS/FAIL
+All foreign keys verified: PASS/FAIL
+All RLS verified: PASS/FAIL
+Storage verified: PASS/FAIL
+
+IMPORTANT:
+Do not modify the React frontend.
+
+Do not implement authentication UI.
+
+Do not implement AI/ML.
+
+Do not implement marketplace APIs.
+
+Do not implement orders APIs.
+
+This task is ONLY:
+
+CORE DATABASE SCHEMA + SECURITY FOUNDATION.
+
+STOP after the verification report.
