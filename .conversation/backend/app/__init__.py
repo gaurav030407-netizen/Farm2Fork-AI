@@ -1,1 +1,0 @@
-"""Application package for the Farm2Fork FastAPI service."""
