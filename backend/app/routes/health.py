@@ -1,0 +1,13 @@
+"""Health-check route."""
+
+from fastapi import APIRouter
+
+from ..schemas.health import HealthResponse
+
+
+router = APIRouter(tags=["health"])
+
+
+@router.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(status="Farm2Fork backend running")

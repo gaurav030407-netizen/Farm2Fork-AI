@@ -1,0 +1,1 @@
+- [OpenAPI and Zod compatibility](zod-openapi-compatibility.md) — verify generated integer schemas against the installed Zod major version.

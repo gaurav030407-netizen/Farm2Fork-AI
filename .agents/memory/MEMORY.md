@@ -1,0 +1,1 @@
+- [Conversation handoff files](conversation-handoff-files.md) — after a project transition, preserved source may need restoring before workflow verification.
