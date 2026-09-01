@@ -1,0 +1,382 @@
+# Farm2Fork — READ-ONLY SUPABASE SCHEMA AUDIT
+
+The Farm2Fork FastAPI backend is now successfully connected to Supabase PostgreSQL.
+
+Current verified status:
+
+- React frontend: PASS
+- FastAPI backend: PASS
+- SUPABASE_DATABASE_URL: detected
+- Supabase PostgreSQL connection: PASS
+- GET /health: PASS
+- GET /health/db: PASS
+- SELECT 1 against Supabase: PASS
+
+IMPORTANT:
+This task is READ-ONLY.
+
+DO NOT make ANY changes to the database, backend code, frontend code, schema, RLS policies, storage, or authentication configuration.
+
+DO NOT create, alter, drop, truncate, insert, update, or delete anything.
+
+DO NOT run migrations.
+
+DO NOT run SQLAlchemy create_all().
+
+DO NOT create tables.
+
+DO NOT modify existing tables.
+
+DO NOT modify RLS policies.
+
+DO NOT modify storage buckets.
+
+DO NOT modify Supabase Auth.
+
+DO NOT use Replit PostgreSQL.
+
+Use ONLY the existing Supabase PostgreSQL connection through SUPABASE_DATABASE_URL for database inspection.
+
+==================================================
+1. DATABASE INFORMATION
+==================================================
+
+Safely inspect and report:
+
+- Database name
+- PostgreSQL major version
+- Connection type
+- Supabase/PostgreSQL server information
+- Current schema being used
+
+Do NOT print:
+
+- SUPABASE_DATABASE_URL
+- database password
+- API keys
+- service-role key
+- access tokens
+
+==================================================
+2. TABLE AUDIT
+==================================================
+
+Inspect the existing Supabase database and list ALL user/application tables.
+
+For every table, report:
+
+- table name
+- schema name
+- approximate row count if safely available
+- columns
+- column data types
+- nullable/not-null
+- default values
+- primary key
+- foreign keys
+- unique constraints
+
+Pay particular attention to these expected Farm2Fork tables:
+
+- profiles
+- farmers
+- buyers
+- crop_listings
+- orders
+- order_items
+
+Also report any OTHER existing Farm2Fork-related tables.
+
+Do not create missing tables.
+
+If a table does not exist, simply report:
+
+NOT FOUND
+
+==================================================
+3. RELATIONSHIP AUDIT
+==================================================
+
+Inspect existing foreign-key relationships.
+
+Create a simple text representation such as:
+
+profiles
+   ↓
+farmers
+   ↓
+crop_listings
+
+buyers
+   ↓
+orders
+   ↓
+order_items
+
+Use the ACTUAL database relationships.
+
+Do not invent relationships.
+
+==================================================
+4. ROW LEVEL SECURITY AUDIT
+==================================================
+
+Inspect every existing Farm2Fork-related table.
+
+For each table report:
+
+- RLS enabled: YES/NO
+- RLS forced: YES/NO if available
+- number of policies
+- policy names
+- policy operation:
+  SELECT / INSERT / UPDATE / DELETE / ALL
+- policy role
+- policy USING expression, redacted/summarized if necessary
+- policy WITH CHECK expression, redacted/summarized if necessary
+
+IMPORTANT:
+
+Do NOT modify or recreate any policy.
+
+We only want to understand the current security configuration.
+
+==================================================
+5. INDEX AUDIT
+==================================================
+
+List existing indexes for Farm2Fork-related tables.
+
+For each index report:
+
+- index name
+- table
+- columns
+- unique: YES/NO
+- primary key: YES/NO
+
+Do not create indexes.
+
+==================================================
+6. ENUMS AND CUSTOM TYPES
+==================================================
+
+Check whether the database already contains custom types/enums relevant to Farm2Fork.
+
+Especially check for things such as:
+
+- user roles
+- listing status
+- order status
+- crop quality
+- units
+
+Report their names and allowed values.
+
+Do not create or modify any types.
+
+==================================================
+7. STORAGE AUDIT
+==================================================
+
+Inspect the Supabase Storage configuration if accessible through the existing project configuration.
+
+Report:
+
+- existing storage buckets
+- bucket names
+- public/private status
+- whether a crop image bucket exists
+- relevant storage policies
+
+Pay particular attention to:
+
+crop-images
+
+Do NOT create, delete, rename, or modify buckets or policies.
+
+==================================================
+8. SUPABASE AUTH AUDIT
+==================================================
+
+Only inspect configuration that is safely accessible.
+
+Report whether Supabase Auth appears to be configured for the project.
+
+Do NOT:
+
+- create users
+- delete users
+- modify authentication settings
+- change providers
+- change email settings
+- expose user credentials
+
+If Auth configuration cannot be inspected through the current backend connection, report:
+
+NOT AVAILABLE THROUGH CURRENT DATABASE CONNECTION
+
+==================================================
+9. EXISTING FARM2FORK FOUNDATION
+==================================================
+
+Determine whether an existing Farm2Fork database foundation already exists.
+
+Specifically answer:
+
+A. Do profiles exist?
+B. Do farmers exist?
+C. Do buyers exist?
+D. Do crop listings exist?
+E. Do orders exist?
+F. Do order items exist?
+G. Are relationships already configured?
+H. Is RLS already configured?
+I. Is crop image storage already configured?
+
+Do not make any changes.
+
+==================================================
+10. COMPARE WITH REQUIRED MVP
+==================================================
+
+Compare the ACTUAL existing schema against this intended Farm2Fork MVP:
+
+USER SYSTEM
+
+profiles
+farmers
+buyers
+
+MARKETPLACE
+
+crop_listings
+
+ORDER SYSTEM
+
+orders
+order_items
+
+LOGISTICS — FUTURE
+
+delivery information
+delivery tracking
+route optimization data
+
+AI/ML — FUTURE
+
+price prediction data
+demand forecasting data
+historical crop price data
+market demand data
+
+Do NOT create the future tables.
+
+This section should ONLY identify:
+
+- Already exists
+- Missing
+- Partially implemented
+- Needs modification later
+
+==================================================
+11. DATA SAFETY
+==================================================
+
+Before finishing, confirm:
+
+- No INSERT statements executed
+- No UPDATE statements executed
+- No DELETE statements executed
+- No DROP statements executed
+- No ALTER statements executed
+- No CREATE TABLE statements executed
+- No CREATE INDEX statements executed
+- No RLS policies modified
+- No storage buckets modified
+- No authentication settings modified
+
+Only read-only inspection was performed.
+
+==================================================
+12. FINAL REPORT
+==================================================
+
+Give me a clear report in this exact structure:
+
+DATABASE
+---------
+Connection: PASS/FAIL
+Database: [name]
+Schema: [name]
+
+TABLES
+------
+profiles: FOUND/NOT FOUND
+farmers: FOUND/NOT FOUND
+buyers: FOUND/NOT FOUND
+crop_listings: FOUND/NOT FOUND
+orders: FOUND/NOT FOUND
+order_items: FOUND/NOT FOUND
+
+RELATIONSHIPS
+-------------
+[actual relationships]
+
+RLS
+---
+profiles: ENABLED/DISABLED/NOT FOUND
+farmers: ENABLED/DISABLED/NOT FOUND
+buyers: ENABLED/DISABLED/NOT FOUND
+crop_listings: ENABLED/DISABLED/NOT FOUND
+orders: ENABLED/DISABLED/NOT FOUND
+order_items: ENABLED/DISABLED/NOT FOUND
+
+STORAGE
+-------
+crop-images: FOUND/NOT FOUND
+Other buckets: [list]
+
+INDEXES
+-------
+[summary]
+
+CUSTOM TYPES
+------------
+[summary]
+
+FARM2FORK FOUNDATION
+--------------------
+Profiles: FOUND/MISSING
+Farmers: FOUND/MISSING
+Buyers: FOUND/MISSING
+Crop marketplace: FOUND/MISSING
+Orders: FOUND/MISSING
+RLS: CONFIGURED/MISSING/PARTIAL
+Storage: CONFIGURED/MISSING/PARTIAL
+
+MVP GAP ANALYSIS
+----------------
+Already implemented:
+[list]
+
+Missing:
+[list]
+
+Needs modification later:
+[list]
+
+SECURITY CHECK
+--------------
+Read-only audit: PASS/FAIL
+Database modified: YES/NO
+Frontend modified: YES/NO
+Backend modified: YES/NO
+Replit PostgreSQL used: YES/NO
+
+IMPORTANT:
+Do not make any recommendations that require changing the database during this task.
+
+This is an AUDIT ONLY.
+
+STOP after producing the report.
