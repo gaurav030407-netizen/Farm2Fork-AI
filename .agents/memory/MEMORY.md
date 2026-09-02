@@ -1,1 +1,2 @@
 - [Conversation handoff files](conversation-handoff-files.md) — after a project transition, preserved source may need restoring before workflow verification.
+- [Supabase Auth workflow secrets](supabase-auth-workflow-secrets.md) — Auth URL and anon-key configuration must reach both FastAPI and Vite runtimes.

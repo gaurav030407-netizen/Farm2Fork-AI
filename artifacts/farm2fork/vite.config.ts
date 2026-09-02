@@ -27,8 +27,19 @@ if (!basePath) {
   );
 }
 
+// The Supabase URL and anon key are intentionally public browser configuration.
+// Keep the database URL and service-role credentials out of the frontend bundle.
+const supabasePublicUrl =
+  process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
+const supabasePublicAnonKey =
+  process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
+
 export default defineConfig({
   base: basePath,
+  define: {
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabasePublicUrl),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabasePublicAnonKey),
+  },
   plugins: [
     react(),
     tailwindcss(),

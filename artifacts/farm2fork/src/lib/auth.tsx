@@ -34,6 +34,7 @@ export type RegistrationInput = {
 type SupabaseUser = {
   id: string;
   email?: string | null;
+  user_metadata?: Record<string, unknown>;
 };
 
 type SupabaseSessionPayload = {
@@ -151,6 +152,37 @@ function pendingProfile(): Omit<RegistrationInput, "password" | "email"> | null 
   } catch {
     return null;
   }
+}
+
+function profileFromUserMetadata(
+  user: SupabaseUser,
+): Omit<RegistrationInput, "password" | "email"> | null {
+  const metadata = user.user_metadata ?? {};
+  const role = metadata.role;
+  if (
+    typeof metadata.name !== "string" ||
+    typeof metadata.mobile !== "string" ||
+    typeof metadata.location !== "string" ||
+    (role !== "FARMER" && role !== "BUYER")
+  ) {
+    return null;
+  }
+
+  const organizationName =
+    role === "FARMER" ? metadata.farm_name : metadata.business_name;
+  if (typeof organizationName !== "string" || !organizationName.trim()) {
+    return null;
+  }
+
+  return {
+    name: metadata.name.trim(),
+    mobile: metadata.mobile.trim(),
+    location: metadata.location.trim(),
+    role,
+    ...(role === "FARMER"
+      ? { farm_name: organizationName.trim() }
+      : { business_name: organizationName.trim() }),
+  };
 }
 
 function savePendingProfile(
@@ -276,6 +308,37 @@ class SupabaseAuthClient {
     return (await this.getSession())?.accessToken ?? null;
   }
 
+  async restoreRecoverySession(): Promise<AuthSession | null> {
+    if (typeof window === "undefined") return null;
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (hash.get("type") !== "recovery" || !accessToken || !refreshToken) {
+      return null;
+    }
+
+    try {
+      const user = await this.request<SupabaseUser>("user", {}, accessToken);
+      const session = this.setSession({
+        accessToken,
+        refreshToken,
+        expiresAt:
+          Math.floor(Date.now() / 1000) +
+          Number(hash.get("expires_in") ?? 3600),
+        user,
+      });
+      window.history.replaceState(
+        {},
+        document.title,
+        `${window.location.pathname}${window.location.search}`,
+      );
+      return session;
+    } catch {
+      this.setSession(null);
+      return null;
+    }
+  }
+
   async signUp(input: RegistrationInput): Promise<AuthSession | null> {
     const payload = await this.request<SupabaseSessionPayload>("signup", {
       method: "POST",
@@ -329,9 +392,24 @@ class SupabaseAuthClient {
       method: "POST",
       body: JSON.stringify({
         email,
-        redirect_to: `${window.location.origin}/login`,
+        redirect_to: `${window.location.origin}/reset-password`,
       }),
     });
+  }
+
+  async updatePassword(password: string): Promise<void> {
+    const currentSession = await this.getSession();
+    if (!currentSession) {
+      throw new Error("Your recovery link has expired. Please request a new one.");
+    }
+    await this.request(
+      "user",
+      {
+        method: "PUT",
+        body: JSON.stringify({ password }),
+      },
+      currentSession.accessToken,
+    );
   }
 
   async apiRequest<T>(
@@ -369,6 +447,7 @@ type AuthContextValue = {
   ) => Promise<{ role: Exclude<AuthRole, "ADMIN">; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   appRole: AppRole | null;
 };
 
@@ -411,7 +490,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw requestError;
         }
 
-        const pending = pendingProfile();
+        const pending =
+          pendingProfile() ?? profileFromUserMetadata(nextSession.user);
         if (!pending) {
           throw new Error(
             "Your account is authenticated, but its Farm2Fork profile is missing.",
@@ -443,7 +523,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     void (async () => {
       try {
-        const nextSession = await authClient.getSession();
+        const nextSession =
+          (await authClient.restoreRecoverySession()) ??
+          (await authClient.getSession());
         if (!active) return;
         setSession(nextSession);
         if (nextSession) {
@@ -546,6 +628,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authClient.resetPassword(email.trim());
   }, []);
 
+  const updatePassword = useCallback(async (password: string) => {
+    await authClient.updatePassword(password);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading,
@@ -557,6 +643,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       resetPassword,
+      updatePassword,
       appRole: profile ? toAppRole(profile.role) : null,
     }),
     [
@@ -568,6 +655,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       signUp,
+      updatePassword,
     ],
   );
 

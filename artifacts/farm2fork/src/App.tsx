@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LanguageProvider } from '@/i18n';
 import NotFound from '@/pages/not-found';
-import { Admin, BuyerDashboard, CropDetail, CropListings, FarmerDashboard, ForgotPassword, Home, Insights, Logistics, Login, Marketplace, Orders, Register, SellCrop } from '@/pages/farm-pages';
+import { Admin, BuyerDashboard, CropDetail, CropListings, FarmerDashboard, ForgotPassword, Home, Insights, Logistics, Login, Marketplace, Orders, Register, ResetPassword, SellCrop } from '@/pages/farm-pages';
 import {
   Route,
   Switch,
@@ -40,6 +40,7 @@ function Router() {
         <Route path="/login"><Login onRole={handleRole} /></Route>
         <Route path="/register"><Register onRole={handleRole} /></Route>
         <Route path="/forgot-password"><ForgotPassword /></Route>
+        <Route path="/reset-password"><ResetPassword /></Route>
         <Route path="/farmer"><ProtectedRoute roles={['FARMER']}><AppShell role="farmer" onRole={handleRole} onSignOut={handleSignOut} displayName={profile?.email ?? 'Farmer workspace'}><FarmerDashboard /></AppShell></ProtectedRoute></Route>
         <Route path="/farmer/dashboard"><ProtectedRoute roles={['FARMER']}><AppShell role="farmer" onRole={handleRole} onSignOut={handleSignOut} displayName={profile?.email ?? 'Farmer workspace'}><FarmerDashboard /></AppShell></ProtectedRoute></Route>
         <Route path="/farmer/sell"><ProtectedRoute roles={['FARMER']}><AppShell role="farmer" onRole={handleRole} onSignOut={handleSignOut} displayName={profile?.email ?? 'Farmer workspace'}><SellCrop /></AppShell></ProtectedRoute></Route>
