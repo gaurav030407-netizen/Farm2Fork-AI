@@ -62,6 +62,20 @@ export class AuthRequestError extends Error {
   }
 }
 
+export const supabaseEmailRateLimitMessage =
+  "Too many verification emails were requested. Please wait before trying again.";
+
+export function isSupabaseEmailRateLimitError(error: unknown): boolean {
+  if (!(error instanceof AuthRequestError)) return false;
+  const normalizedMessage = error.message.toLowerCase();
+  return (
+    error.status === 429 ||
+    normalizedMessage.includes("email rate limit") ||
+    normalizedMessage.includes("rate limit exceeded") ||
+    normalizedMessage.includes("over_email_send_rate_limit")
+  );
+}
+
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)
   ?.trim()
   .replace(/\/+$/, "");

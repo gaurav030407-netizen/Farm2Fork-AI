@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { BarChart3, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Download, HandCoins, Leaf, MapPin, Package, PackageSearch, Pencil, Plus, Route, Search, ShieldCheck, Sprout, Store, TrendingUp, Truck, Users, WalletCards } from 'lucide-react';
@@ -6,7 +6,7 @@ import { getGetCropQueryKey, getGetDashboardQueryKey, getGetMarketInsightsQueryK
 import { AppRole, Logo, RoleSwitcher } from '@/components/farm-shell';
 import { Badge, Button, Feedback, LoadingButton, QueryState, SectionTitle, StatCard } from '@/components/ui-kit';
 import { useLanguage } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { isSupabaseEmailRateLimitError, supabaseEmailRateLimitMessage, useAuth } from '@/lib/auth';
 
 export const sampleCrops: Crop[] = [
   { id: 101, crop: 'Onion', variety: 'Nashik Red', category: 'Vegetables', farmer: 'Ramesh Patil', location: 'Nashik, Maharashtra', quantity: 840, unit: 'kg', price: 26, harvestDate: '2025-04-08', grade: 'A', organic: false, image: '', status: 'active' },
@@ -44,12 +44,23 @@ export function Register({ onRole }: { onRole: (role: AppRole) => void }) {
   const [location, setRegisterLocation] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [feedbackKind, setFeedbackKind] = useState<'success' | 'error'>('error');
   const [confirmationRequired, setConfirmationRequired] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setCooldownSeconds((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldownSeconds]);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (pending || cooldownSeconds > 0) return;
     setPending(true);
     setFeedback('');
+    setFeedbackKind('error');
     try {
       const result = await auth.signUp({
         name,
@@ -62,18 +73,26 @@ export function Register({ onRole }: { onRole: (role: AppRole) => void }) {
       });
       if (result.needsEmailConfirmation) {
         setConfirmationRequired(true);
+        setFeedbackKind('success');
+        setCooldownSeconds(60);
         setFeedback('Check your email to confirm your account, then sign in to finish setup.');
       } else {
         onRole(role);
         setLocation(role === 'farmer' ? '/farmer/dashboard' : '/buyer');
       }
     } catch (submitError) {
-      setFeedback(submitError instanceof Error ? submitError.message : 'Registration failed. Please try again.');
+      if (isSupabaseEmailRateLimitError(submitError)) {
+        setConfirmationRequired(true);
+        setCooldownSeconds(60);
+        setFeedback(supabaseEmailRateLimitMessage);
+      } else {
+        setFeedback(submitError instanceof Error ? submitError.message : 'Registration failed. Please try again.');
+      }
     } finally {
       setPending(false);
     }
   };
-  return <AuthFrame eyebrow="Join the network" title="A fairer market starts with a hello." detail="Create your secure Farm2Fork account. Your password is handled only by Supabase Auth."><form onSubmit={submit} className="space-y-5"><div><div className="text-sm font-bold">I am joining as</div><div className="mt-2 grid grid-cols-2 gap-2">{(['farmer', 'buyer'] as AppRole[]).map((item) => <button type="button" key={item} onClick={() => setRegisterRole(item)} className={`min-h-12 rounded-xl border px-3 text-sm font-bold capitalize ${role === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'}`}>{item === 'farmer' ? 'Farmer / FPO' : 'Buyer / Consumer'}</button>)}</div></div><Field label="Your name" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" test="register-name" autoComplete="name" /><Field label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" test="register-email" autoComplete="email" /><Field label="Password" value={password} onChange={setPassword} placeholder="At least 6 characters" type="password" test="register-password" autoComplete="new-password" /><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="register-mobile" autoComplete="tel" /><Field label="Village or city" value={location} onChange={setRegisterLocation} placeholder="e.g. Nashik, Maharashtra" test="register-location" /><Field label={role === 'farmer' ? 'Farm name' : 'Business name'} value={organizationName} onChange={setOrganizationName} placeholder={role === 'farmer' ? 'e.g. Ramesh & Sons' : 'e.g. FreshKart Kitchens'} test={role === 'farmer' ? 'register-farm-name' : 'register-business-name'} />{feedback && <Feedback message={feedback} kind={confirmationRequired ? 'success' : 'error'} />}<button type="submit" disabled={pending || !name || !email || password.length < 6 || !mobile || !location || !organizationName} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Creating account…' : confirmationRequired ? 'Send confirmation again' : 'Create my account'} <ChevronDown size={16} className="-rotate-90" /></button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Already have a profile? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Sign in</Link></p></form></AuthFrame>;
+  return <AuthFrame eyebrow="Join the network" title="A fairer market starts with a hello." detail="Create your secure Farm2Fork account. Your password is handled only by Supabase Auth."><form onSubmit={submit} className="space-y-5"><div><div className="text-sm font-bold">I am joining as</div><div className="mt-2 grid grid-cols-2 gap-2">{(['farmer', 'buyer'] as AppRole[]).map((item) => <button type="button" key={item} onClick={() => setRegisterRole(item)} className={`min-h-12 rounded-xl border px-3 text-sm font-bold capitalize ${role === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'}`}>{item === 'farmer' ? 'Farmer / FPO' : 'Buyer / Consumer'}</button>)}</div></div><Field label="Your name" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" test="register-name" autoComplete="name" /><Field label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" test="register-email" autoComplete="email" /><Field label="Password" value={password} onChange={setPassword} placeholder="At least 6 characters" type="password" test="register-password" autoComplete="new-password" /><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="register-mobile" autoComplete="tel" /><Field label="Village or city" value={location} onChange={setRegisterLocation} placeholder="e.g. Nashik, Maharashtra" test="register-location" /><Field label={role === 'farmer' ? 'Farm name' : 'Business name'} value={organizationName} onChange={setOrganizationName} placeholder={role === 'farmer' ? 'e.g. Ramesh & Sons' : 'e.g. FreshKart Kitchens'} test={role === 'farmer' ? 'register-farm-name' : 'register-business-name'} />{feedback && <Feedback message={feedback} kind={feedbackKind} />}{cooldownSeconds > 0 && <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">You can request another verification email in {cooldownSeconds}s.</p>}<button type="submit" disabled={pending || cooldownSeconds > 0 || !name || !email || password.length < 6 || !mobile || !location || !organizationName} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Creating account…' : cooldownSeconds > 0 ? `Please wait ${cooldownSeconds}s` : confirmationRequired ? 'Send confirmation again' : 'Create my account'} <ChevronDown size={16} className="-rotate-90" /></button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Already have a profile? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Sign in</Link></p></form></AuthFrame>;
 }
 
 export function Login({ onRole }: { onRole: (role: AppRole) => void }) {
