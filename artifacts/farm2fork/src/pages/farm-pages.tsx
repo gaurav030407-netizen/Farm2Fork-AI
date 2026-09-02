@@ -6,6 +6,7 @@ import { getGetCropQueryKey, getGetDashboardQueryKey, getGetMarketInsightsQueryK
 import { AppRole, Logo, RoleSwitcher } from '@/components/farm-shell';
 import { Badge, Button, Feedback, LoadingButton, QueryState, SectionTitle, StatCard } from '@/components/ui-kit';
 import { useLanguage } from '@/i18n';
+import { useAuth } from '@/lib/auth';
 
 export const sampleCrops: Crop[] = [
   { id: 101, crop: 'Onion', variety: 'Nashik Red', category: 'Vegetables', farmer: 'Ramesh Patil', location: 'Nashik, Maharashtra', quantity: 840, unit: 'kg', price: 26, harvestDate: '2025-04-08', grade: 'A', organic: false, image: '', status: 'active' },
@@ -34,38 +35,88 @@ function AuthFrame({ eyebrow, title, detail, children }: { eyebrow: string; titl
 
 export function Register({ onRole }: { onRole: (role: AppRole) => void }) {
   const [, setLocation] = useLocation();
+  const auth = useAuth();
   const [role, setRegisterRole] = useState<AppRole>('farmer');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [mobile, setMobile] = useState('');
   const [location, setRegisterLocation] = useState('');
-  const [saved, setSaved] = useState(false);
-  const submit = (event: React.FormEvent) => {
+  const [organizationName, setOrganizationName] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
+  const [pending, setPending] = useState(false);
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    localStorage.setItem('farm2fork-user', JSON.stringify({ name, mobile, location, role }));
-    onRole(role);
-    setSaved(true);
-    setTimeout(() => setLocation(role === 'farmer' ? '/farmer/dashboard' : '/buyer'), 500);
+    setPending(true);
+    setFeedback('');
+    try {
+      const result = await auth.signUp({
+        name,
+        email,
+        password,
+        mobile,
+        location,
+        role: role === 'farmer' ? 'FARMER' : 'BUYER',
+        ...(role === 'farmer' ? { farm_name: organizationName } : { business_name: organizationName }),
+      });
+      if (result.needsEmailConfirmation) {
+        setConfirmationRequired(true);
+        setFeedback('Check your email to confirm your account, then sign in to finish setup.');
+      } else {
+        onRole(role);
+        setLocation(role === 'farmer' ? '/farmer/dashboard' : '/buyer');
+      }
+    } catch (submitError) {
+      setFeedback(submitError instanceof Error ? submitError.message : 'Registration failed. Please try again.');
+    } finally {
+      setPending(false);
+    }
   };
-  return <AuthFrame eyebrow="Join the network" title="A fairer market starts with a hello." detail="Create a simple demo profile. You can update your details later as the Farm2Fork market desk grows."><form onSubmit={submit} className="space-y-5"><div><div className="text-sm font-bold">I am joining as</div><div className="mt-2 grid grid-cols-2 gap-2">{(['farmer', 'buyer'] as AppRole[]).map((item) => <button type="button" key={item} onClick={() => setRegisterRole(item)} className={`min-h-12 rounded-xl border px-3 text-sm font-bold capitalize ${role === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'}`}>{item === 'farmer' ? 'Farmer / FPO' : 'Buyer / Consumer'}</button>)}</div></div><Field label="Your name" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" test="register-name" /><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="register-mobile" /><Field label="Village or city" value={location} onChange={setRegisterLocation} placeholder="e.g. Nashik, Maharashtra" test="register-location" /><button type="submit" disabled={!name || !mobile || !location} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{saved ? 'Welcome to Farm2Fork' : 'Create my profile'} <ChevronDown size={16} className="-rotate-90" /></button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Already have a profile? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Sign in</Link></p></form></AuthFrame>;
+  return <AuthFrame eyebrow="Join the network" title="A fairer market starts with a hello." detail="Create your secure Farm2Fork account. Your password is handled only by Supabase Auth."><form onSubmit={submit} className="space-y-5"><div><div className="text-sm font-bold">I am joining as</div><div className="mt-2 grid grid-cols-2 gap-2">{(['farmer', 'buyer'] as AppRole[]).map((item) => <button type="button" key={item} onClick={() => setRegisterRole(item)} className={`min-h-12 rounded-xl border px-3 text-sm font-bold capitalize ${role === item ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.08)] text-[hsl(var(--primary))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'}`}>{item === 'farmer' ? 'Farmer / FPO' : 'Buyer / Consumer'}</button>)}</div></div><Field label="Your name" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" test="register-name" /><Field label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" test="register-email" /><Field label="Password" value={password} onChange={setPassword} placeholder="At least 6 characters" type="password" test="register-password" /><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="register-mobile" /><Field label="Village or city" value={location} onChange={setRegisterLocation} placeholder="e.g. Nashik, Maharashtra" test="register-location" /><Field label={role === 'farmer' ? 'Farm name' : 'Business name'} value={organizationName} onChange={setOrganizationName} placeholder={role === 'farmer' ? 'e.g. Ramesh & Sons' : 'e.g. FreshKart Kitchens'} test={role === 'farmer' ? 'register-farm-name' : 'register-business-name'} />{feedback && <Feedback message={feedback} kind={confirmationRequired ? 'success' : 'error'} />}<button type="submit" disabled={pending || !name || !email || password.length < 6 || !mobile || !location || !organizationName} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Creating account…' : confirmationRequired ? 'Send confirmation again' : 'Create my account'} <ChevronDown size={16} className="-rotate-90" /></button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Already have a profile? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Sign in</Link></p></form></AuthFrame>;
 }
 
 export function Login({ onRole }: { onRole: (role: AppRole) => void }) {
   const [, setLocation] = useLocation();
-  const [mobile, setMobile] = useState('');
-  const submit = (event: React.FormEvent) => {
+  const auth = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [pending, setPending] = useState(false);
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const saved = localStorage.getItem('farm2fork-user');
-    const role = saved ? (JSON.parse(saved).role as AppRole) : 'farmer';
-    onRole(role);
-    setLocation(role === 'farmer' ? '/farmer/dashboard' : '/buyer');
+    setPending(true);
+    setFeedback('');
+    try {
+      const profile = await auth.signIn(email, password);
+      const role = profile.role.toLowerCase() as AppRole;
+      onRole(role);
+      setLocation(role === 'farmer' ? '/farmer/dashboard' : role === 'buyer' ? '/buyer' : '/admin');
+    } catch (loginError) {
+      setFeedback(loginError instanceof Error ? loginError.message : 'Sign in failed. Please check your details.');
+    } finally {
+      setPending(false);
+    }
   };
-  return <AuthFrame eyebrow="Welcome back" title="Good to see you again." detail="Use your mobile number to open your Farm2Fork workspace. This demo keeps sign-in simple while the secure identity layer is connected."><form onSubmit={submit} className="space-y-5"><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="login-mobile" /><button type="submit" disabled={!mobile} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Continue <ChevronDown size={16} className="-rotate-90" /></button><div className="flex justify-between text-xs"><Link href="/forgot-password" className="font-bold text-[hsl(var(--primary))]">Forgot your number?</Link><Link href="/register" className="font-bold text-[hsl(var(--primary))]">Create a profile</Link></div></form></AuthFrame>;
+  return <AuthFrame eyebrow="Welcome back" title="Good to see you again." detail="Sign in with the email and password protected by Supabase Auth."><form onSubmit={submit} className="space-y-5"><Field label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" test="login-email" /><Field label="Password" value={password} onChange={setPassword} placeholder="Your password" type="password" test="login-password" />{feedback && <Feedback message={feedback} kind="error" />}<button type="submit" disabled={pending || !email || !password} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Signing in…' : 'Continue'} <ChevronDown size={16} className="-rotate-90" /></button><div className="flex justify-between text-xs"><Link href="/forgot-password" className="font-bold text-[hsl(var(--primary))]">Forgot your password?</Link><Link href="/register" className="font-bold text-[hsl(var(--primary))]">Create a profile</Link></div></form></AuthFrame>;
 }
 
 export function ForgotPassword() {
+  const auth = useAuth();
   const [sent, setSent] = useState(false);
-  const [mobile, setMobile] = useState('');
-  return <AuthFrame eyebrow="Need a hand?" title="We’ll help you get back in." detail="Enter your registered mobile number and we’ll send a demo recovery prompt."><form onSubmit={(event) => { event.preventDefault(); setSent(true); }} className="space-y-5"><Field label="Mobile number" value={mobile} onChange={setMobile} placeholder="10-digit mobile number" type="tel" test="forgot-mobile" />{sent && <Feedback message="Recovery instructions are ready in demo mode." kind="success" />}<button type="submit" disabled={!mobile} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{sent ? 'Prompt sent' : 'Send recovery prompt'}</button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Remembered your details? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Back to sign in</Link></p></form></AuthFrame>;
+  const [email, setEmail] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await auth.resetPassword(email);
+      setSent(true);
+      setFeedback('If an account exists for that email, recovery instructions are on the way.');
+    } catch (resetError) {
+      setFeedback(resetError instanceof Error ? resetError.message : 'Could not send recovery instructions.');
+    }
+  };
+  return <AuthFrame eyebrow="Need a hand?" title="We’ll help you get back in." detail="Enter your registered email and Supabase Auth will send a secure recovery link."><form onSubmit={submit} className="space-y-5"><Field label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" test="forgot-email" />{feedback && <Feedback message={feedback} kind={sent ? 'success' : 'error'} />}<button type="submit" disabled={!email} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{sent ? 'Instructions sent' : 'Send recovery link'}</button><p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Remembered your details? <Link href="/login" className="font-bold text-[hsl(var(--primary))]">Back to sign in</Link></p></form></AuthFrame>;
 }
 
 export function Home({ role, onRole }: { role: AppRole; onRole: (role: AppRole) => void }) {

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BarChart3, Bell, Boxes, ChevronRight, CircleHelp, ClipboardList, CloudSun, LayoutDashboard, Leaf, Menu, PackageCheck, Route, Search, Settings2, ShoppingBasket, Sprout, Truck, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Boxes, ChevronRight, CircleHelp, ClipboardList, CloudSun, LayoutDashboard, Leaf, LogOut, Menu, PackageCheck, Route, Search, Settings2, ShoppingBasket, Sprout, Truck, Users, X } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 
 export type AppRole = 'farmer' | 'buyer' | 'admin';
@@ -55,7 +55,7 @@ export function RoleSwitcher({ role, onChange, dark = false }: { role: AppRole; 
   </div>;
 }
 
-export function AppShell({ role, onRole, children }: { role: AppRole; onRole: (role: AppRole) => void; children: ReactNode }) {
+export function AppShell({ role, onRole, onSignOut, displayName, children }: { role: AppRole; onRole: (role: AppRole) => void; onSignOut?: () => void | Promise<void>; displayName?: string; children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useStateLocal(false);
   const { isHindi, toggleLanguage } = useLanguage();
@@ -74,7 +74,7 @@ export function AppShell({ role, onRole, children }: { role: AppRole; onRole: (r
           <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-white/70"><CloudSun size={15} className="text-[hsl(var(--accent))]" />Field weather</div>
           <div className="flex items-end justify-between"><span className="font-display text-3xl">28°</span><span className="text-right text-[11px] leading-4 text-white/45">Clear skies<br />Nashik, MH</span></div>
         </div>
-        <div className="flex items-center gap-3 border-t border-white/10 px-2 pt-4"><div className="flex size-9 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-sm font-bold text-[hsl(var(--foreground))]">RK</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">Ramesh & Sons</div><div className="text-[11px] text-white/45">{roleLabels[role]} workspace</div></div><Settings2 size={16} className="text-white/45" /></div>
+        <div className="flex items-center gap-3 border-t border-white/10 px-2 pt-4"><div className="flex size-9 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-sm font-bold text-[hsl(var(--foreground))]">{(displayName ?? roleLabels[role]).slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{displayName ?? roleLabels[role]}</div><div className="text-[11px] text-white/45">{roleLabels[role]} workspace</div></div>{onSignOut ? <button type="button" onClick={() => void onSignOut()} className="rounded-lg p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Sign out" data-testid="button-logout"><LogOut size={16} /></button> : <Settings2 size={16} className="text-white/45" />}</div>
       </div>
     </aside>
     {mobileOpen && <button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-40 bg-[hsl(var(--foreground)/.45)] lg:hidden" data-testid="button-overlay-menu" />}

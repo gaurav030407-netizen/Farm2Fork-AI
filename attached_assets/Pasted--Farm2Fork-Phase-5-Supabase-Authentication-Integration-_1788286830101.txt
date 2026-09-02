@@ -1,0 +1,442 @@
+# Farm2Fork — Phase 5: Supabase Authentication Integration
+
+The Farm2Fork Phase 4 database migration has been successfully completed.
+
+CURRENT STATUS:
+
+Supabase PostgreSQL: PASS
+FastAPI: PASS
+React frontend: PASS
+
+Existing database tables:
+
+profiles
+farmers
+buyers
+crop_listings
+orders
+order_items
+
+RLS: ENABLED
+Supabase Auth: AVAILABLE
+
+IMPORTANT:
+
+This phase is ONLY for authentication integration.
+
+Do NOT modify the database schema.
+
+Do NOT create new tables.
+
+Do NOT modify existing RLS policies unless absolutely required to make the existing authentication flow work.
+
+Do NOT disable RLS.
+
+Do NOT use Replit PostgreSQL.
+
+Do NOT use Replit DATABASE_URL.
+
+Do NOT store passwords in our database.
+
+Do NOT expose SUPABASE_DATABASE_URL to React.
+
+Do NOT expose Supabase service-role credentials to React.
+
+Do NOT redesign the existing frontend UI.
+
+==================================================
+1. INSPECT EXISTING FRONTEND
+==================================================
+
+First inspect the existing React application.
+
+Find:
+
+- Login page
+- Registration/signup page
+- Farmer registration flow
+- Buyer registration flow
+- Existing authentication state
+- Existing API client
+- Existing route protection
+- Existing dashboard routes
+
+Do not redesign them.
+
+Determine what authentication UI already exists.
+
+==================================================
+2. SUPABASE AUTHENTICATION
+==================================================
+
+Use Supabase Auth for:
+
+- email/password registration
+- email/password login
+- logout
+- session management
+
+Use the Supabase project configuration already available to the application.
+
+Do NOT put SUPABASE_DATABASE_URL in the frontend.
+
+The frontend must NEVER receive the PostgreSQL connection string.
+
+Only public Supabase client configuration may be used in the frontend.
+
+Never expose:
+
+- database password
+- service-role key
+- SUPABASE_DATABASE_URL
+
+==================================================
+3. BACKEND JWT VERIFICATION
+==================================================
+
+FastAPI must verify authenticated requests.
+
+Implement a reusable authentication dependency.
+
+Conceptually:
+
+Authorization:
+Bearer <SUPABASE_ACCESS_TOKEN>
+
+FastAPI should:
+
+1. Extract the Bearer token.
+2. Validate the Supabase JWT securely.
+3. Obtain the authenticated user's UUID.
+4. Use that UUID for authorization and database operations.
+
+Do NOT trust:
+
+- farmer_id supplied by frontend
+- buyer_id supplied by frontend
+- profile_id supplied by frontend
+- arbitrary user_id supplied by frontend
+
+Ownership must come from the authenticated user's identity.
+
+==================================================
+4. AUTH ENDPOINTS
+==================================================
+
+Create only the minimum required backend authentication/identity endpoints.
+
+Recommended:
+
+GET /api/auth/me
+
+Response should provide safe authenticated user information such as:
+
+{
+  "id": "...",
+  "email": "...",
+  "role": "FARMER"
+}
+
+Do not return:
+
+- password
+- database credentials
+- service-role credentials
+- sensitive Auth internals
+
+If login/register is handled directly by Supabase Auth on the frontend, do NOT unnecessarily duplicate password authentication in FastAPI.
+
+==================================================
+5. PROFILE CREATION
+==================================================
+
+After successful Supabase Auth registration:
+
+Create the corresponding public.profiles record.
+
+Required:
+
+profiles.id = auth.users.id
+
+Store:
+
+name
+role
+mobile
+location
+
+Then create either:
+
+farmers.profile_id = profiles.id
+
+OR:
+
+buyers.profile_id = profiles.id
+
+depending on the selected role.
+
+Do NOT allow a user to create both farmer and buyer records through the normal registration flow unless the existing product requirements explicitly support that.
+
+==================================================
+6. REGISTRATION FLOW
+==================================================
+
+Farmer registration:
+
+User enters:
+
+- name
+- email
+- password
+- mobile
+- location
+- farm name
+
+Flow:
+
+React
+ ↓
+Supabase Auth signup
+ ↓
+authenticated user ID
+ ↓
+FastAPI profile creation
+ ↓
+farmers record
+ ↓
+Farmer dashboard
+
+Buyer registration:
+
+User enters:
+
+- name
+- email
+- password
+- mobile
+- location
+- business name
+
+Flow:
+
+React
+ ↓
+Supabase Auth signup
+ ↓
+authenticated user ID
+ ↓
+FastAPI profile creation
+ ↓
+buyers record
+ ↓
+Buyer dashboard
+
+Do not store passwords anywhere except Supabase Auth.
+
+==================================================
+7. LOGIN FLOW
+==================================================
+
+Login should:
+
+1. Authenticate through Supabase Auth.
+2. Obtain access token/session.
+3. Store session securely using the Supabase client/session mechanism.
+4. Send access token with protected FastAPI requests.
+5. FastAPI verifies the token.
+6. FastAPI identifies the user.
+7. Retrieve profile/role.
+8. Return the appropriate application state.
+
+Role-based navigation:
+
+FARMER → Farmer Dashboard
+
+BUYER → Buyer Marketplace
+
+ADMIN → Admin Dashboard
+
+Do not trust frontend-only role checks for authorization.
+
+Backend authorization must remain authoritative.
+
+==================================================
+8. LOGOUT
+==================================================
+
+Implement logout using Supabase Auth.
+
+After logout:
+
+- clear local authentication state
+- clear cached user data
+- prevent protected API calls
+- redirect to login/home page
+
+==================================================
+9. PROTECTED ROUTES
+==================================================
+
+Inspect the existing React routing.
+
+Implement protected routes for:
+
+Farmer Dashboard
+Buyer Dashboard
+Orders
+Profile
+Admin pages if they already exist
+
+Unauthenticated users should be redirected appropriately.
+
+Do not break public pages.
+
+==================================================
+10. API CLIENT
+==================================================
+
+Inspect the existing API client.
+
+Create/update a reusable mechanism that automatically attaches:
+
+Authorization: Bearer <access_token>
+
+to protected FastAPI requests.
+
+Do not duplicate authentication logic across every component.
+
+==================================================
+11. SECURITY
+==================================================
+
+Verify:
+
+- No PostgreSQL credentials in React.
+- No SUPABASE_DATABASE_URL in React.
+- No service-role key in React.
+- Passwords are never stored in Farm2Fork tables.
+- Backend verifies authentication.
+- Backend uses authenticated user identity.
+- RLS remains enabled.
+- Frontend role checks are not treated as security boundaries.
+
+==================================================
+12. TESTING
+
+Test the following:
+
+TEST 1:
+Register a farmer.
+
+Expected:
+
+Supabase Auth user created.
+profiles row created.
+farmers row created.
+
+TEST 2:
+Register a buyer.
+
+Expected:
+
+Supabase Auth user created.
+profiles row created.
+buyers row created.
+
+TEST 3:
+Login as farmer.
+
+Expected:
+
+Authentication succeeds.
+Farmer dashboard accessible.
+
+TEST 4:
+Login as buyer.
+
+Expected:
+
+Authentication succeeds.
+Buyer marketplace accessible.
+
+TEST 5:
+Logout.
+
+Expected:
+
+Protected pages become inaccessible.
+
+TEST 6:
+Unauthenticated API request.
+
+Expected:
+
+FastAPI returns HTTP 401.
+
+TEST 7:
+Attempt to access another user's protected resource.
+
+Expected:
+
+Access denied through backend authorization/RLS.
+
+==================================================
+13. DATABASE SAFETY
+
+Do NOT:
+
+CREATE TABLE
+ALTER TABLE
+DROP TABLE
+TRUNCATE
+DELETE
+Modify schema
+Disable RLS
+Create new RLS policies unnecessarily
+
+The existing Phase 4 schema is the source of truth.
+
+==================================================
+14. FINAL REPORT
+
+Report:
+
+AUTHENTICATION
+Supabase Auth integration: PASS/FAIL
+Email/password registration: PASS/FAIL
+Login: PASS/FAIL
+Logout: PASS/FAIL
+Session handling: PASS/FAIL
+
+FARMER
+Farmer registration: PASS/FAIL
+Profile creation: PASS/FAIL
+Farmer record creation: PASS/FAIL
+Farmer dashboard protection: PASS/FAIL
+
+BUYER
+Buyer registration: PASS/FAIL
+Profile creation: PASS/FAIL
+Buyer record creation: PASS/FAIL
+Buyer marketplace protection: PASS/FAIL
+
+BACKEND
+JWT verification: PASS/FAIL
+/api/auth/me: PASS/FAIL
+Unauthorized requests return 401: PASS/FAIL
+
+SECURITY
+PostgreSQL credentials exposed to frontend: YES/NO
+Service-role credentials exposed: YES/NO
+Passwords stored in Farm2Fork tables: YES/NO
+RLS still enabled: YES/NO
+
+DATABASE
+Schema modified: YES/NO
+Replit PostgreSQL used: YES/NO
+
+IMPORTANT:
+
+Do not proceed to marketplace APIs, orders APIs, AI/ML, logistics, or payment integration.
+
+STOP after authentication testing and final report.

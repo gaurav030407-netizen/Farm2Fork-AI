@@ -22,6 +22,26 @@ def _required_supabase_database_url() -> str:
     return database_url
 
 
+def _required_supabase_url() -> str:
+    supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    if not supabase_url:
+        raise RuntimeError("SUPABASE_URL is required for Supabase Auth verification.")
+
+    if not supabase_url.startswith(("https://", "http://")):
+        raise RuntimeError("SUPABASE_URL must be an HTTP(S) URL.")
+
+    return supabase_url
+
+
+def _required_supabase_anon_key() -> str:
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    if not anon_key:
+        raise RuntimeError(
+            "SUPABASE_ANON_KEY is required for Supabase Auth verification."
+        )
+    return anon_key
+
+
 def _frontend_origins() -> list[str]:
     configured_origins = os.getenv("FRONTEND_ORIGINS", "")
     if configured_origins.strip():
@@ -53,6 +73,8 @@ class Settings:
     supabase_database_url: str = field(
         default_factory=_required_supabase_database_url
     )
+    supabase_url: str = field(default_factory=_required_supabase_url)
+    supabase_anon_key: str = field(default_factory=_required_supabase_anon_key)
 
 
 settings = Settings()
