@@ -1,0 +1,61 @@
+Farm2Fork has a Supabase email confirmation redirect problem.
+
+When a user registers and clicks the Supabase confirmation email, the browser is redirected to:
+
+http://localhost:3000/#access_token=...
+
+but localhost:3000 refuses the connection.
+
+Do NOT modify the database schema.
+Do NOT modify PostgreSQL.
+Do NOT modify RLS policies.
+Do NOT create tables.
+Do NOT change authentication architecture unnecessarily.
+
+Diagnose and fix ONLY the Supabase Auth redirect configuration.
+
+First inspect the existing frontend workflow and determine:
+1. Which port the React/Vite frontend actually runs on.
+2. Which URL Replit uses for the current preview.
+3. What redirectTo URL the Supabase signup code currently supplies.
+4. What Supabase Site URL / redirect URLs are configured or expected.
+
+The frontend must use the actual Farm2Fork frontend origin instead of hardcoded localhost:3000.
+
+For email signup:
+- Use the current browser/frontend origin when appropriate.
+- Configure the Supabase signup emailRedirectTo dynamically or through a safe environment configuration.
+- Do not hardcode localhost:3000 for production.
+- Do not expose SUPABASE_DATABASE_URL.
+- Do not expose any service-role/secret key.
+
+For local development, the confirmation redirect should point to the actual frontend development URL/port used by the Replit workflow.
+
+For production, the redirect must use the deployed Farm2Fork URL.
+
+Also inspect the password recovery flow and make sure its redirect uses the same correct frontend origin.
+
+IMPORTANT:
+Do not print access tokens, refresh tokens, passwords, database URLs, or secret keys in logs.
+
+After making the minimal fix:
+
+1. Restart the frontend.
+2. Verify the frontend is reachable at its actual URL.
+3. Verify the signup code uses the correct redirect URL.
+4. Verify password recovery uses the correct redirect URL.
+5. Verify no localhost:3000 redirect is hardcoded unless localhost:3000 is actually the active frontend port.
+
+Do not create test accounts.
+
+At the end report:
+
+Frontend actual URL: PASS/FAIL
+Supabase signup redirect configuration: PASS/FAIL
+Password recovery redirect: PASS/FAIL
+Hardcoded localhost:3000 redirect remains: YES/NO
+Database modified: YES/NO
+RLS modified: YES/NO
+Secrets exposed: YES/NO
+
+Do not proceed to Phase 6.

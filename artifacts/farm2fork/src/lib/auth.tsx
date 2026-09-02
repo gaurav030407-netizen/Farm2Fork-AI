@@ -77,6 +77,16 @@ export const supabaseConfigurationError = isSupabaseConfigured
 const sessionStorageKey = "farm2fork.supabase.session";
 const pendingProfileStorageKey = "farm2fork.pending-profile";
 
+function frontendUrl(path: string): string {
+  const basePath = (import.meta.env.BASE_URL as string | undefined) ?? "/";
+  const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;
+  const normalizedPath = path.replace(/^\/+/, "");
+  return new URL(
+    `${normalizedBasePath}${normalizedPath}`,
+    window.location.origin,
+  ).toString();
+}
+
 function getStoredSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
 
@@ -353,6 +363,7 @@ class SupabaseAuthClient {
           farm_name: input.farm_name,
           business_name: input.business_name,
         },
+        redirect_to: frontendUrl("login"),
       }),
     });
     const nextSession = toSession(payload);
@@ -392,7 +403,7 @@ class SupabaseAuthClient {
       method: "POST",
       body: JSON.stringify({
         email,
-        redirect_to: `${window.location.origin}/reset-password`,
+        redirect_to: frontendUrl("reset-password"),
       }),
     });
   }
