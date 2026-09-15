@@ -1,0 +1,14 @@
+[build]
+  base = "."
+  command = "pnpm --filter @workspace/farm2fork build"
+  publish = "artifacts/farm2fork/dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_VERSION = "10.34.5"
+  PNPM_FLAGS = "--no-frozen-lockfile"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -25,12 +25,12 @@ def database_health() -> DatabaseHealthResponse:
     except Exception as exc:
         error_type = type(exc).__name__
         logger.error(
-            "Supabase PostgreSQL health check failed (error_type=%s)",
+            "PostgreSQL health check failed (error_type=%s)",
             error_type,
         )
         raise HTTPException(
             status_code=503,
-            detail=f"Supabase PostgreSQL connection failed (error_type={error_type})",
+            detail=f"PostgreSQL connection failed (error_type={error_type})",
         ) from None
 
     return DatabaseHealthResponse(status="ok", database="connected")

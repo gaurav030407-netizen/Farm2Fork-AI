@@ -116,15 +116,15 @@
   --app-font-sans: 'DM Sans', sans-serif;
   --app-font-serif: 'Fraunces', Georgia, serif;
   --app-font-mono: 'Space Mono', monospace;
-  --radius: 0.85rem;
+  --radius: 0.5rem;
   --shadow-2xs: 0 1px 2px hsl(158 28% 16% / 0.04);
-  --shadow-xs: 0 2px 6px hsl(158 28% 16% / 0.06);
-  --shadow-sm: 0 4px 14px hsl(158 28% 16% / 0.07);
-  --shadow: 0 8px 24px hsl(158 28% 16% / 0.08);
-  --shadow-md: 0 12px 30px hsl(158 28% 16% / 0.11);
-  --shadow-lg: 0 18px 40px hsl(158 28% 16% / 0.14);
-  --shadow-xl: 0 24px 52px hsl(158 28% 16% / 0.16);
-  --shadow-2xl: 0 30px 70px hsl(158 28% 16% / 0.18);
+  --shadow-xs: 0 1px 3px hsl(158 28% 16% / 0.05);
+  --shadow-sm: 0 1px 4px hsl(158 28% 16% / 0.06);
+  --shadow: 0 2px 6px hsl(158 28% 16% / 0.07);
+  --shadow-md: 0 4px 10px hsl(158 28% 16% / 0.08);
+  --shadow-lg: 0 6px 14px hsl(158 28% 16% / 0.09);
+  --shadow-xl: 0 8px 20px hsl(158 28% 16% / 0.10);
+  --shadow-2xl: 0 12px 24px hsl(158 28% 16% / 0.12);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -384,23 +384,14 @@
     background-image: linear-gradient(hsl(var(--border) / .32) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / .32) 1px, transparent 1px);
     background-size: 28px 28px;
   }
-  .ink-shadow { box-shadow: 0 7px 0 hsl(var(--foreground) / .12); }
-  .soft-shadow { box-shadow: 0 16px 42px hsl(158 28% 16% / .1); }
-  .stagger-in { animation: rise-in .55s cubic-bezier(.22,1,.36,1) both; }
-  .stagger-in:nth-child(2) { animation-delay: 70ms; }
-  .stagger-in:nth-child(3) { animation-delay: 140ms; }
-  .stagger-in:nth-child(4) { animation-delay: 210ms; }
-  .stagger-in:nth-child(5) { animation-delay: 280ms; }
+  .stagger-in { animation: rise-in .35s ease-out both; }
+  .stagger-in:nth-child(2) { animation-delay: 50ms; }
+  .stagger-in:nth-child(3) { animation-delay: 100ms; }
+  .stagger-in:nth-child(4) { animation-delay: 150ms; }
+  .stagger-in:nth-child(5) { animation-delay: 200ms; }
 }
 
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes float-field {
-  0%, 100% { transform: translateY(0) rotate(-1deg); }
-  50% { transform: translateY(-7px) rotate(1deg); }
-}
-
-.field-float { animation: float-field 7s ease-in-out infinite; }

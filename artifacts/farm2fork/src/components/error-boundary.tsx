@@ -35,29 +35,22 @@ function toError(value: unknown): Error {
   }
 }
 
-function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
+function DefaultFallback({ resetError }: ErrorFallbackProps) {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
-      <div className="max-w-lg w-full text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Something went wrong
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          This part of the app hit an error. The rest of the app is still
-          running.
+    <div className="min-h-[50vh] w-full flex items-center justify-center p-6">
+      <div className="max-w-md w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 text-center shadow-xs">
+        <h2 className="text-lg font-bold text-[hsl(var(--foreground))]">
+          Unable to load this section
+        </h2>
+        <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+          An unexpected error occurred while loading this view. The rest of the application remains available.
         </p>
-        {/* Dev only: messages can carry API responses and other internals. */}
-        {import.meta.env.DEV ? (
-          <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800">
-            {error.message || String(error)}
-          </pre>
-        ) : null}
         <button
           type="button"
           onClick={resetError}
-          className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          className="mt-4 inline-flex items-center justify-center rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(var(--primary)/.9)]"
         >
-          Try again
+          Reload section
         </button>
       </div>
     </div>

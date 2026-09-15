@@ -11,7 +11,8 @@ Farm2Fork connects Indian farmers and buyers directly with transparent listings,
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- FastAPI env: `BACKEND_HOST`, `BACKEND_PORT`, `FRONTEND_ORIGINS`, and secret `SUPABASE_DATABASE_URL` (see `backend/.env.example`)
+- FastAPI env: `BACKEND_HOST`, `BACKEND_PORT`, `FRONTEND_ORIGINS`, and `SUPABASE_DATABASE_URL` (see `backend/.env.example`)
+- Node auth env: `JWT_SECRET`, `JWT_EXPIRES_IN`, and `DATABASE_URL` (see `backend/.env.example`)
 - Existing API env: `DATABASE_URL` — Postgres connection string
 
 ## Stack

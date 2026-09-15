@@ -2,44 +2,65 @@
 
 from dataclasses import dataclass, field
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment files
+_api_env = Path(__file__).resolve().parent.parent.parent / "artifacts" / "api-server" / ".env"
+if _api_env.exists():
+    load_dotenv(_api_env)
+_backend_env = Path(__file__).resolve().parent.parent / ".env"
+if _backend_env.exists():
+    load_dotenv(_backend_env, override=True)
 
 
-def _required_supabase_database_url() -> str:
-    database_url = os.getenv("SUPABASE_DATABASE_URL", "").strip()
+def _required_database_url() -> str:
+    database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url:
-        raise RuntimeError(
-            "SUPABASE_DATABASE_URL is required; refusing to use DATABASE_URL "
-            "or Replit PostgreSQL."
-        )
+        raise RuntimeError("DATABASE_URL is required for the PostgreSQL connection.")
 
     if not database_url.startswith(
         ("postgresql://", "postgres://", "postgresql+psycopg2://")
     ):
         raise RuntimeError(
-            "SUPABASE_DATABASE_URL must be a PostgreSQL SQLAlchemy connection URL."
+            "DATABASE_URL must be a PostgreSQL SQLAlchemy connection URL."
         )
 
     return database_url
 
 
-def _required_supabase_url() -> str:
-    supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
-    if not supabase_url:
-        raise RuntimeError("SUPABASE_URL is required for Supabase Auth verification.")
-
-    if not supabase_url.startswith(("https://", "http://")):
-        raise RuntimeError("SUPABASE_URL must be an HTTP(S) URL.")
-
-    return supabase_url
+def _required_jwt_secret() -> str:
+    secret = os.getenv("JWT_SECRET", "").strip()
+    if len(secret) < 32:
+        raise RuntimeError("JWT_SECRET must be a strong value of at least 32 characters.")
+    return secret
 
 
-def _required_supabase_anon_key() -> str:
-    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
-    if not anon_key:
-        raise RuntimeError(
-            "SUPABASE_ANON_KEY is required for Supabase Auth verification."
-        )
-    return anon_key
+def _optional_storage_url() -> str:
+    return os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+
+
+def _optional_storage_key() -> str:
+    return os.getenv("SUPABASE_ANON_KEY", "").strip()
+
+
+def _optional_storage_service_role_key() -> str:
+    return os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+
+
+def _optional_market_data_gov_api_key() -> str:
+    return os.getenv("MARKET_DATA_GOV_API_KEY", "").strip()
+
+
+def _optional_env(name: str) -> str:
+    return os.getenv(name, "").strip()
+
+
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
 
 
 def _frontend_origins() -> list[str]:
@@ -70,11 +91,21 @@ class Settings:
         default_factory=lambda: int(os.getenv("BACKEND_PORT", "8000"))
     )
     frontend_origins: list[str] = field(default_factory=_frontend_origins)
-    supabase_database_url: str = field(
-        default_factory=_required_supabase_database_url
-    )
-    supabase_url: str = field(default_factory=_required_supabase_url)
-    supabase_anon_key: str = field(default_factory=_required_supabase_anon_key)
+    database_url: str = field(default_factory=_required_database_url)
+    jwt_secret: str = field(default_factory=_required_jwt_secret)
+    jwt_algorithm: str = field(default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256"))
+    supabase_url: str = field(default_factory=_optional_storage_url)
+    supabase_anon_key: str = field(default_factory=_optional_storage_key)
+    supabase_service_role_key: str = field(default_factory=_optional_storage_service_role_key)
+    market_data_gov_api_key: str = field(default_factory=_optional_market_data_gov_api_key)
+    payment_gateway: str = field(default_factory=lambda: _optional_env("PAYMENT_GATEWAY"))
+    payment_key_id: str = field(default_factory=lambda: _optional_env("PAYMENT_KEY_ID"))
+    payment_key_secret: str = field(default_factory=lambda: _optional_env("PAYMENT_KEY_SECRET"))
+    payment_webhook_secret: str = field(default_factory=lambda: _optional_env("PAYMENT_WEBHOOK_SECRET"))
+    market_data_cache_ttl_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_CACHE_TTL_SECONDS", 1800))
+    market_data_min_refresh_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_MIN_REFRESH_SECONDS", 60))
+    market_data_rate_limit_cooldown_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_RATE_LIMIT_COOLDOWN_SECONDS", 300))
+    market_data_max_cooldown_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_MAX_COOLDOWN_SECONDS", 3600))
 
 
 settings = Settings()

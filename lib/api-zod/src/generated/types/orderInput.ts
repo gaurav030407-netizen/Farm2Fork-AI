@@ -7,7 +7,12 @@
  */
 
 export interface OrderInput {
-  cropId: number;
+  crop_listing_id: string;
+  /** @exclusiveMinimum 0 */
   quantity: number;
-  buyer: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  delivery_location: string;
 }

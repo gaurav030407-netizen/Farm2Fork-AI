@@ -5,13 +5,7 @@ import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
+const rawPort = process.env.PORT ?? '5000';
 
 const port = Number(rawPort);
 
@@ -19,27 +13,11 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
-
-// The Supabase URL and anon key are intentionally public browser configuration.
-// Keep the database URL and service-role credentials out of the frontend bundle.
-const supabasePublicUrl =
-  process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
-const supabasePublicAnonKey =
-  process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
+const basePath = process.env.BASE_PATH ?? '/';
+const apiServerUrl = process.env.NODE_API_URL ?? 'http://127.0.0.1:3000';
 
 export default defineConfig({
   base: basePath,
-  define: {
-    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabasePublicUrl),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabasePublicAnonKey),
-  },
   plugins: [
     react(),
     tailwindcss(),
@@ -80,6 +58,25 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: apiServerUrl,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (_err, _req, res) => {
+            if ('writeHead' in res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(
+                JSON.stringify({
+                  detail: `Unable to connect to API server at ${apiServerUrl}. Please make sure the local API server is running on port 3000.`,
+                  code: 'API_SERVER_OFFLINE',
+                }),
+              );
+            }
+          });
+        },
+      },
+    },
     fs: {
       strict: true,
     },

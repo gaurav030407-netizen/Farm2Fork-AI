@@ -2,10 +2,66 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import en from './en.json';
 import hi from './hi.json';
 
-export type Language = 'en' | 'hi';
-type Dictionary = Record<string, string>;
+export type Language =
+  | 'en'
+  | 'hi'
+  | 'bn'
+  | 'te'
+  | 'mr'
+  | 'ta'
+  | 'gu'
+  | 'ur'
+  | 'kn'
+  | 'or'
+  | 'ml'
+  | 'pa'
+  | 'as'
+  | 'mai'
+  | 'sa'
+  | 'ks'
+  | 'ne'
+  | 'kok'
+  | 'sd'
+  | 'doi'
+  | 'mni'
+  | 'brx'
+  | 'sat';
 
-const dictionaries: Record<Language, Dictionary> = { en, hi };
+export interface LanguageMeta {
+  code: Language;
+  name: string;
+  nativeName: string;
+  status: 'available' | 'in_progress';
+}
+
+export const INDIAN_LANGUAGES: LanguageMeta[] = [
+  { code: 'en', name: 'English', nativeName: 'English', status: 'available' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', status: 'available' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', status: 'in_progress' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', status: 'in_progress' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', status: 'in_progress' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', status: 'in_progress' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', status: 'in_progress' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', status: 'in_progress' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', status: 'in_progress' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', status: 'in_progress' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', status: 'in_progress' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', status: 'in_progress' },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', status: 'in_progress' },
+  { code: 'mai', name: 'Maithili', nativeName: 'मैथिली', status: 'in_progress' },
+  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', status: 'in_progress' },
+  { code: 'ks', name: 'Kashmiri', nativeName: 'کٲشُر', status: 'in_progress' },
+  { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', status: 'in_progress' },
+  { code: 'kok', name: 'Konkani', nativeName: 'कोंकणी', status: 'in_progress' },
+  { code: 'sd', name: 'Sindhi', nativeName: 'سنڌي', status: 'in_progress' },
+  { code: 'doi', name: 'Dogri', nativeName: 'डोगरी', status: 'in_progress' },
+  { code: 'mni', name: 'Manipuri', nativeName: 'মৈতৈলোন্', status: 'in_progress' },
+  { code: 'brx', name: 'Bodo', nativeName: 'बर’', status: 'in_progress' },
+  { code: 'sat', name: 'Santali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', status: 'in_progress' },
+];
+
+type Dictionary = Record<string, string>;
+const dictionaries: Partial<Record<Language, Dictionary>> = { en, hi };
 const originalText = new WeakMap<Text, string>();
 
 function translateText(value: string, language: Language) {
@@ -14,6 +70,7 @@ function translateText(value: string, language: Language) {
   const core = value.slice(leading.length, value.length - trailing.length || undefined);
   if (!core) return value;
   const dictionary = dictionaries[language];
+  if (!dictionary) return value;
   const exact = dictionary[core];
   if (exact) return `${leading}${exact}${trailing}`;
   let translated = core;
@@ -43,7 +100,7 @@ function translateDom(language: Language) {
     const current = text.nodeValue ?? '';
     const source = originalText.get(text) ?? current;
     if (!originalText.has(text)) originalText.set(text, source);
-    const next = language === 'en' ? source : translateText(source, language);
+    const next = language === 'en' || !dictionaries[language] ? source : translateText(source, language);
     if (current !== next) text.nodeValue = next;
   });
   document.querySelectorAll<HTMLElement>('[placeholder], [aria-label], [title]').forEach((element) => {
@@ -53,7 +110,7 @@ function translateDom(language: Language) {
       const key = `data-f2f-${attribute}`;
       const source = element.getAttribute(key) ?? value;
       if (!element.hasAttribute(key)) element.setAttribute(key, source);
-      const next = language === 'en' ? source : translateText(source, language);
+      const next = language === 'en' || !dictionaries[language] ? source : translateText(source, language);
       if (value !== next) element.setAttribute(attribute, next);
     });
   });
@@ -63,6 +120,7 @@ function translateDom(language: Language) {
 type LanguageContextValue = {
   language: Language;
   isHindi: boolean;
+  setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
   t: (key: string) => string;
 };
@@ -89,18 +147,37 @@ function TranslationLayer({ children, language }: { children: ReactNode; languag
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('farm2fork-language') as Language) || 'en');
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = localStorage.getItem('farm2fork-language');
+    if (saved && INDIAN_LANGUAGES.some((l) => l.code === saved)) {
+      return saved as Language;
+    }
+    return 'en';
+  });
+
+  const setLanguage = (next: Language) => {
+    setLanguageState(next);
+    localStorage.setItem('farm2fork-language', next);
+  };
+
+  const toggleLanguage = () => {
+    const next = language === 'hi' ? 'en' : 'hi';
+    setLanguage(next);
+  };
+
   const value = useMemo<LanguageContextValue>(() => ({
     language,
     isHindi: language === 'hi',
-    toggleLanguage: () => setLanguage((current) => {
-      const next = current === 'hi' ? 'en' : 'hi';
-      localStorage.setItem('farm2fork-language', next);
-      return next;
-    }),
-    t: (key) => dictionaries[language][key] ?? key,
+    setLanguage,
+    toggleLanguage,
+    t: (key) => dictionaries[language]?.[key] ?? dictionaries.en?.[key] ?? key,
   }), [language]);
-  return <LanguageContext.Provider value={value}><TranslationLayer language={language}>{children}</TranslationLayer></LanguageContext.Provider>;
+
+  return (
+    <LanguageContext.Provider value={value}>
+      <TranslationLayer language={language}>{children}</TranslationLayer>
+    </LanguageContext.Provider>
+  );
 }
 
 export function useLanguage() {

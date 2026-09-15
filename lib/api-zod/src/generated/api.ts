@@ -137,72 +137,520 @@ export const UpdateCropResponse = zod.object({
 
 
 /**
- * @summary List orders
+ * @summary List active database crop listings
  */
-export const ListOrdersQueryParams = zod.object({
-  "role": zod.enum(['farmer', 'buyer']).optional()
+export const ListMarketplaceListingsResponseItem = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListMarketplaceListingsResponse = zod.array(ListMarketplaceListingsResponseItem)
+
+
+/**
+ * @summary Get an active database crop listing
+ */
+export const GetMarketplaceListingParams = zod.object({
+  "id": zod.coerce.string()
 })
 
-export const ListOrdersResponseItem = zod.object({
-  "id": zod.number(),
-  "crop": zod.string(),
-  "farmer": zod.string(),
-  "buyer": zod.string(),
+export const GetMarketplaceListingResponse = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
   "quantity": zod.number(),
-  "total": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled']),
-  "placedAt": zod.string(),
-  "deliveryDate": zod.string(),
-  "location": zod.string()
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List the authenticated buyer's orders
+ */
+export const ListOrdersResponseItem = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
 })
 export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 
 
 /**
- * @summary Place an order
+ * @summary Create an order for an active listing
  */
+export const createOrderBodyQuantityExclusiveMin = 0;
+
+export const createOrderBodyDeliveryLocationMax = 240;
+
+
+
 export const CreateOrderBody = zod.object({
-  "cropId": zod.number(),
-  "quantity": zod.number(),
-  "buyer": zod.string()
+  "crop_listing_id": zod.string(),
+  "quantity": zod.number().gt(createOrderBodyQuantityExclusiveMin),
+  "delivery_location": zod.string().min(1).max(createOrderBodyDeliveryLocationMax)
 })
 
 export const CreateOrderResponse = zod.object({
-  "id": zod.number(),
-  "crop": zod.string(),
-  "farmer": zod.string(),
-  "buyer": zod.string(),
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
   "quantity": zod.number(),
-  "total": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled']),
-  "placedAt": zod.string(),
-  "deliveryDate": zod.string(),
-  "location": zod.string()
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
 })
 
 
 /**
- * @summary Change order status
+ * @summary Get an authorized order
  */
-export const UpdateOrderStatusParams = zod.object({
-  "id": zod.coerce.number()
+export const GetOrderParams = zod.object({
+  "id": zod.coerce.string()
 })
 
-export const UpdateOrderStatusBody = zod.object({
-  "status": zod.enum(['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled'])
-})
-
-export const UpdateOrderStatusResponse = zod.object({
-  "id": zod.number(),
-  "crop": zod.string(),
-  "farmer": zod.string(),
-  "buyer": zod.string(),
+export const GetOrderResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
   "quantity": zod.number(),
-  "total": zod.number(),
-  "status": zod.enum(['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled']),
-  "placedAt": zod.string(),
-  "deliveryDate": zod.string(),
-  "location": zod.string()
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
+})
+
+
+/**
+ * @summary Cancel a pending buyer order
+ */
+export const CancelOrderParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelOrderResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
+})
+
+
+/**
+ * @summary List the authenticated farmer's crop listings
+ */
+export const ListFarmerListingsResponseItem = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListFarmerListingsResponse = zod.array(ListFarmerListingsResponseItem)
+
+
+/**
+ * @summary Create a crop listing for the authenticated farmer
+ */
+export const createFarmerListingBodyCropNameMax = 120;
+
+export const createFarmerListingBodyVarietyMax = 120;
+
+export const createFarmerListingBodyQuantityExclusiveMin = 0;
+export const createFarmerListingBodyQuantityMax = 10000000;
+
+export const createFarmerListingBodyUnitMax = 32;
+
+export const createFarmerListingBodyPriceMin = 0;
+export const createFarmerListingBodyPriceMax = 100000000;
+
+export const createFarmerListingBodyQualityMax = 80;
+
+export const createFarmerListingBodyLocationMax = 160;
+
+
+
+export const CreateFarmerListingBody = zod.object({
+  "crop_name": zod.string().min(1).max(createFarmerListingBodyCropNameMax),
+  "variety": zod.string().max(createFarmerListingBodyVarietyMax).nullable(),
+  "quantity": zod.number().gt(createFarmerListingBodyQuantityExclusiveMin).max(createFarmerListingBodyQuantityMax),
+  "unit": zod.string().min(1).max(createFarmerListingBodyUnitMax),
+  "price": zod.number().min(createFarmerListingBodyPriceMin).max(createFarmerListingBodyPriceMax),
+  "quality": zod.string().max(createFarmerListingBodyQualityMax).nullable(),
+  "location": zod.string().min(1).max(createFarmerListingBodyLocationMax),
+  "harvest_date": zod.coerce.date().nullable()
+})
+
+export const CreateFarmerListingResponse = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get one listing owned by the authenticated farmer
+ */
+export const GetFarmerListingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetFarmerListingResponse = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a listing owned by the authenticated farmer
+ */
+export const UpdateFarmerListingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateFarmerListingBodyCropNameMax = 120;
+
+export const updateFarmerListingBodyVarietyMax = 120;
+
+export const updateFarmerListingBodyQuantityExclusiveMin = 0;
+export const updateFarmerListingBodyQuantityMax = 10000000;
+
+export const updateFarmerListingBodyUnitMax = 32;
+
+export const updateFarmerListingBodyPriceMin = 0;
+export const updateFarmerListingBodyPriceMax = 100000000;
+
+export const updateFarmerListingBodyQualityMax = 80;
+
+export const updateFarmerListingBodyLocationMax = 160;
+
+
+
+export const UpdateFarmerListingBody = zod.object({
+  "crop_name": zod.string().min(1).max(updateFarmerListingBodyCropNameMax).nullish(),
+  "variety": zod.string().max(updateFarmerListingBodyVarietyMax).nullish(),
+  "quantity": zod.number().gt(updateFarmerListingBodyQuantityExclusiveMin).max(updateFarmerListingBodyQuantityMax).nullish(),
+  "unit": zod.string().min(1).max(updateFarmerListingBodyUnitMax).nullish(),
+  "price": zod.number().min(updateFarmerListingBodyPriceMin).max(updateFarmerListingBodyPriceMax).nullish(),
+  "quality": zod.string().max(updateFarmerListingBodyQualityMax).nullish(),
+  "location": zod.string().min(1).max(updateFarmerListingBodyLocationMax).nullish(),
+  "harvest_date": zod.coerce.date().nullish(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']).nullish()
+})
+
+export const UpdateFarmerListingResponse = zod.object({
+  "id": zod.string(),
+  "farmer_name": zod.string().nullish(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "quality": zod.string().nullable(),
+  "location": zod.string(),
+  "harvest_date": zod.coerce.date().nullable(),
+  "image_url": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'SOLD', 'INACTIVE']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List orders containing the authenticated farmer's listings
+ */
+export const ListFarmerOrdersResponseItem = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
+})
+export const ListFarmerOrdersResponse = zod.array(ListFarmerOrdersResponseItem)
+
+
+/**
+ * @summary Advance an order status as its farmer
+ */
+export const UpdateFarmerOrderStatusParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateFarmerOrderStatusBody = zod.object({
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'])
+})
+
+export const UpdateFarmerOrderStatusResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "total_amount": zod.number(),
+  "delivery_location": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "buyer_name": zod.string().nullish(),
+  "farmer_name": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "crop_listing_id": zod.string(),
+  "crop_name": zod.string(),
+  "variety": zod.string().nullable(),
+  "image_url": zod.string().nullable(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "price": zod.number(),
+  "subtotal": zod.number()
+}))
+})
+
+
+/**
+ * @summary Create an order-authorized private call
+ */
+export const CreateCallBody = zod.object({
+  "order_id": zod.string()
+})
+
+export const CreateCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get temporary ICE server configuration
+ */
+export const GetCallIceConfigResponse = zod.object({
+  "ice_servers": zod.array(zod.object({
+  "urls": zod.array(zod.string()),
+  "username": zod.string().nullish(),
+  "credential": zod.string().nullish()
+})),
+  "turn_configured": zod.boolean()
+})
+
+
+/**
+ * @summary Get an authorized call session
+ */
+export const GetCallParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Accept a ringing call as its farmer
+ */
+export const AcceptCallParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AcceptCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Decline a ringing call as its farmer
+ */
+export const DeclineCallParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeclineCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary End an accepted or active call
+ */
+export const EndCallParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const EndCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Mark an accepted call active
+ */
+export const ActivateCallParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ActivateCallResponse = zod.object({
+  "call_id": zod.string(),
+  "order_id": zod.string(),
+  "status": zod.enum(['RINGING', 'ACCEPTED', 'ACTIVE', 'DECLINED', 'ENDED', 'EXPIRED']),
+  "farmer_name": zod.string(),
+  "crop_name": zod.string().nullable(),
+  "farmer_profile_id": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.coerce.date().nullable(),
+  "ended_at": zod.coerce.date().nullable()
 })
 
 
@@ -247,7 +695,7 @@ export const GetMarketInsightsResponse = zod.object({
  * @summary Plan a shipment
  */
 export const CreateLogisticsPlanBody = zod.object({
-  "orderIds": zod.array(zod.number()),
+  "orderIds": zod.array(zod.string()),
   "destination": zod.string()
 })
 

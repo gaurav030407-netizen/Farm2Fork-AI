@@ -1,13 +1,15 @@
-"""Supabase Auth bearer-token verification for FastAPI routes."""
+"""JWT bearer-token verification for FastAPI routes."""
 
 from dataclasses import dataclass
 from uuid import UUID
 
-import httpx
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import text
 
 from .config import settings
+from .database.connection import get_engine
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -15,16 +17,18 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 @dataclass(frozen=True)
 class AuthenticatedUser:
-    """The safe identity fields accepted from a verified Supabase session."""
+    """The safe identity fields accepted from a verified JWT."""
 
     id: UUID
     email: str | None
+    role: str
+    access_token: str
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> AuthenticatedUser:
-    """Verify a Supabase access token and return its authenticated user."""
+    """Verify a Node-issued JWT and load its current profile."""
 
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
@@ -34,52 +38,45 @@ async def get_current_user(
         )
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            response = await client.get(
-                f"{settings.supabase_url}/auth/v1/user",
-                headers={
-                    "apikey": settings.supabase_anon_key,
-                    "Authorization": f"Bearer {credentials.credentials}",
-                },
-            )
-    except httpx.RequestError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service unavailable.",
-        ) from None
-
-    if response.status_code in {401, 403}:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+        )
+        user_id = UUID(str(payload["sub"]))
+        claim_id = UUID(str(payload["id"]))
+        claim_email = payload.get("email")
+        if claim_email is not None:
+            claim_email = str(claim_email).strip().lower() or None
+        role = str(payload["role"])
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    if response.status_code >= 500:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service unavailable.",
-        )
-
-    if response.status_code != 200:
+    if claim_id != user_id or role not in {"FARMER", "BUYER", "CONSUMER", "DRIVER", "ADMIN"}:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication could not be verified.",
+            detail="Invalid authentication role.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        payload = response.json()
-        user_id = UUID(str(payload["id"]))
-    except (KeyError, TypeError, ValueError):
+    with get_engine().connect() as connection:
+        profile = connection.execute(
+            text("SELECT email FROM public.profiles WHERE id = :id AND role = :role AND account_status = 'ACTIVE' AND ((email IS NULL AND :email IS NULL) OR lower(email) = :email) AND (email_verified = true OR phone_verified = true)"),
+            {"id": user_id, "role": role, "email": claim_email},
+        ).mappings().one_or_none()
+    if profile is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication response was invalid.",
+            detail="Account is no longer available.",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
-    email = payload.get("email")
     return AuthenticatedUser(
         id=user_id,
-        email=email if isinstance(email, str) else None,
+        email=profile["email"],
+        role=role,
+        access_token=credentials.credentials,
     )

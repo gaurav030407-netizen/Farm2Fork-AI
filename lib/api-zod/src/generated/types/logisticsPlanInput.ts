@@ -7,6 +7,6 @@
  */
 
 export interface LogisticsPlanInput {
-  orderIds: number[];
+  orderIds: string[];
   destination: string;
 }

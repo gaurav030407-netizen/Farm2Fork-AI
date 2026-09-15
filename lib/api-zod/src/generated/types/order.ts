@@ -5,17 +5,19 @@
  * Farm2Fork marketplace API
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderItem } from './orderItem';
 import type { OrderStatus } from './orderStatus';
 
 export interface Order {
-  id: number;
-  crop: string;
-  farmer: string;
-  buyer: string;
-  quantity: number;
-  total: number;
+  id: string;
   status: OrderStatus;
-  placedAt: string;
-  deliveryDate: string;
-  location: string;
+  total_amount: number;
+  delivery_location: string;
+  created_at: Date;
+  updated_at: Date;
+  /** @nullable */
+  buyer_name?: string | null;
+  /** @nullable */
+  farmer_name?: string | null;
+  items: OrderItem[];
 }

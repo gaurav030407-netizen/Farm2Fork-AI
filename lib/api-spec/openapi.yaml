@@ -18,6 +18,8 @@ tags:
     description: AI market intelligence
   - name: logistics
     description: Logistics planning and tracking
+  - name: farmer-listings
+    description: Authenticated farmer crop listing operations
 paths:
   /healthz:
     get:
@@ -98,15 +100,39 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Crop" }
+  /marketplace/listings:
+    get:
+      operationId: listMarketplaceListings
+      tags: [marketplace]
+      summary: List active database crop listings
+      responses:
+        "200":
+          description: Active crop listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmerListing" }
+  /marketplace/listings/{id}:
+    get:
+      operationId: getMarketplaceListing
+      tags: [marketplace]
+      summary: Get an active database crop listing
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Active crop listing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmerListing" }
+        "404":
+          description: Listing not found
   /orders:
     get:
       operationId: listOrders
       tags: [orders]
-      summary: List orders
-      parameters:
-        - name: role
-          in: query
-          schema: { type: string, enum: [farmer, buyer] }
+      summary: List the authenticated buyer's orders
       responses:
         "200":
           description: Orders
@@ -115,10 +141,12 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Order" }
+        "401": { description: Authentication required }
+        "403": { description: Buyer role required }
     post:
       operationId: createOrder
       tags: [orders]
-      summary: Place an order
+      summary: Create an order for an active listing
       requestBody:
         required: true
         content:
@@ -130,13 +158,144 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
-  /orders/{id}/status:
-    patch:
-      operationId: updateOrderStatus
+        "401": { description: Authentication required }
+        "403": { description: Buyer role required }
+        "409": { description: Listing unavailable or insufficient quantity }
+  /orders/{id}:
+    get:
+      operationId: getOrder
       tags: [orders]
-      summary: Change order status
+      summary: Get an authorized order
       parameters:
-        - { name: id, in: path, required: true, schema: { type: number } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { description: Authentication required }
+        "404": { description: Order not found }
+  /orders/{id}/cancel:
+    post:
+      operationId: cancelOrder
+      tags: [orders]
+      summary: Cancel a pending buyer order
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Cancelled order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { description: Authentication required }
+        "404": { description: Order not found }
+        "409": { description: Order cannot be cancelled }
+  /farmer/listings:
+    get:
+      operationId: listFarmerListings
+      tags: [farmer-listings]
+      summary: List the authenticated farmer's crop listings
+      responses:
+        "200":
+          description: Farmer crop listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmerListing" }
+        "401":
+          description: Authentication required
+        "403":
+          description: Farmer role required
+    post:
+      operationId: createFarmerListing
+      tags: [farmer-listings]
+      summary: Create a crop listing for the authenticated farmer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FarmerListingInput" }
+      responses:
+        "201":
+          description: Created farmer listing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmerListing" }
+        "400":
+          description: Invalid listing
+        "401":
+          description: Authentication required
+        "403":
+          description: Farmer role required
+  /farmer/listings/{id}:
+    get:
+      operationId: getFarmerListing
+      tags: [farmer-listings]
+      summary: Get one listing owned by the authenticated farmer
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Farmer listing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmerListing" }
+        "404":
+          description: Listing not found
+        "401":
+          description: Authentication required
+        "403":
+          description: Farmer role required
+    patch:
+      operationId: updateFarmerListing
+      tags: [farmer-listings]
+      summary: Update a listing owned by the authenticated farmer
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FarmerListingUpdate" }
+      responses:
+        "200":
+          description: Updated farmer listing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmerListing" }
+        "400":
+          description: Invalid listing update
+        "404":
+          description: Listing not found
+        "401":
+          description: Authentication required
+        "403":
+          description: Farmer role required
+  /farmer/orders:
+    get:
+      operationId: listFarmerOrders
+      tags: [farmer-orders]
+      summary: List orders containing the authenticated farmer's listings
+      responses:
+        "200":
+          description: Farmer orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Order" }
+        "401": { description: Authentication required }
+        "403": { description: Farmer role required }
+  /farmer/orders/{id}/status:
+    patch:
+      operationId: updateFarmerOrderStatus
+      tags: [farmer-orders]
+      summary: Advance an order status as its farmer
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       requestBody:
         required: true
         content:
@@ -148,6 +307,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
+        "401": { description: Authentication required }
+        "403": { description: Farmer role required or unauthorized order }
+        "409": { description: Invalid status transition }
   /dashboard:
     get:
       operationId: getDashboard
@@ -231,31 +393,89 @@ components:
         price: { type: number }
         quantity: { type: number }
         status: { type: string }
+    FarmerListing:
+      type: object
+      properties:
+        id: { type: string }
+        farmer_user_id: { type: [string, "null"] }
+        farmer_name: { type: [string, "null"] }
+        farmer_photo_url: { type: [string, "null"] }
+        crop_name: { type: string }
+        variety: { type: [string, "null"] }
+        quantity: { type: number }
+        unit: { type: string }
+        price: { type: number }
+        quality: { type: [string, "null"] }
+        location: { type: string }
+        harvest_date: { type: [string, "null"], format: date }
+        image_url: { type: [string, "null"] }
+        status: { type: string, enum: [ACTIVE, SOLD, INACTIVE] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, crop_name, variety, quantity, unit, price, quality, location, harvest_date, image_url, status, created_at, updated_at]
+    FarmerListingInput:
+      type: object
+      properties:
+        crop_name: { type: string, minLength: 1, maxLength: 120 }
+        variety: { type: [string, "null"], maxLength: 120 }
+        quantity: { type: number, exclusiveMinimum: 0, maximum: 10000000 }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        price: { type: number, minimum: 0, maximum: 100000000 }
+        quality: { type: [string, "null"], maxLength: 80 }
+        location: { type: string, minLength: 1, maxLength: 160 }
+        harvest_date: { type: [string, "null"], format: date }
+      required: [crop_name, variety, quantity, unit, price, quality, location, harvest_date]
+    FarmerListingUpdate:
+      type: object
+      properties:
+        crop_name: { type: [string, "null"], minLength: 1, maxLength: 120 }
+        variety: { type: [string, "null"], maxLength: 120 }
+        quantity: { type: [number, "null"], exclusiveMinimum: 0, maximum: 10000000 }
+        unit: { type: [string, "null"], minLength: 1, maxLength: 32 }
+        price: { type: [number, "null"], minimum: 0, maximum: 100000000 }
+        quality: { type: [string, "null"], maxLength: 80 }
+        location: { type: [string, "null"], minLength: 1, maxLength: 160 }
+        harvest_date: { type: [string, "null"], format: date }
+        status: { type: [string, "null"], enum: [ACTIVE, SOLD, INACTIVE] }
     Order:
       type: object
       properties:
-        id: { type: number }
-        crop: { type: string }
-        farmer: { type: string }
-        buyer: { type: string }
+        id: { type: string }
+        status: { type: string, enum: [PENDING, ACCEPTED, REJECTED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED] }
+        total_amount: { type: number }
+        delivery_location: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        buyer_name: { type: [string, "null"] }
+        farmer_name: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrderItem" }
+      required: [id, status, total_amount, delivery_location, created_at, updated_at, items]
+    OrderItem:
+      type: object
+      properties:
+        id: { type: string }
+        crop_listing_id: { type: string }
+        crop_name: { type: string }
+        variety: { type: [string, "null"] }
+        image_url: { type: [string, "null"] }
         quantity: { type: number }
-        total: { type: number }
-        status: { type: string, enum: [pending, confirmed, in_transit, delivered, cancelled] }
-        placedAt: { type: string }
-        deliveryDate: { type: string }
-        location: { type: string }
-      required: [id, crop, farmer, buyer, quantity, total, status, placedAt, deliveryDate, location]
+        unit: { type: string }
+        price: { type: number }
+        subtotal: { type: number }
+      required: [id, crop_listing_id, crop_name, variety, image_url, quantity, unit, price, subtotal]
     OrderInput:
       type: object
       properties:
-        cropId: { type: number }
-        quantity: { type: number }
-        buyer: { type: string }
-      required: [cropId, quantity, buyer]
+        crop_listing_id: { type: string }
+        quantity: { type: number, exclusiveMinimum: 0 }
+        delivery_location: { type: string, minLength: 1, maxLength: 240 }
+      required: [crop_listing_id, quantity, delivery_location]
     OrderStatusInput:
       type: object
       properties:
-        status: { type: string, enum: [pending, confirmed, in_transit, delivered, cancelled] }
+        status: { type: string, enum: [PENDING, ACCEPTED, REJECTED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED] }
       required: [status]
     Dashboard:
       type: object
@@ -302,7 +522,7 @@ components:
       properties:
         orderIds:
           type: array
-          items: { type: number }
+          items: { type: string }
         destination: { type: string }
       required: [orderIds, destination]
     LogisticsPlan:

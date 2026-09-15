@@ -1,4 +1,4 @@
-"""SQLAlchemy connection helpers for Supabase PostgreSQL."""
+"""SQLAlchemy connection helpers for the Farm2Fork PostgreSQL database."""
 
 from functools import lru_cache
 
@@ -9,10 +9,10 @@ from ..config import settings
 
 @lru_cache(maxsize=1)
 def get_engine() -> Engine:
-    """Create the SQLAlchemy engine from the required Supabase URL only."""
+    """Create the SQLAlchemy engine from the required application database URL."""
 
     return create_engine(
-        settings.supabase_database_url,
+        settings.database_url,
         connect_args={"connect_timeout": 10},
         pool_pre_ping=True,
     )

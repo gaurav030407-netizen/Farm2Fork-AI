@@ -10,9 +10,11 @@ export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
 
 export const OrderStatus = {
-  pending: 'pending',
-  confirmed: 'confirmed',
-  in_transit: 'in_transit',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  PROCESSING: 'PROCESSING',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
 } as const;

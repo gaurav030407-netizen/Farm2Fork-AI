@@ -5,8 +5,7 @@
  * Farm2Fork marketplace API
  * OpenAPI spec version: 0.1.0
  */
-import type { ListOrdersRole } from './listOrdersRole';
 
-export type ListOrdersParams = {
-role?: ListOrdersRole;
-};
+export interface CallInput {
+  order_id: string;
+}

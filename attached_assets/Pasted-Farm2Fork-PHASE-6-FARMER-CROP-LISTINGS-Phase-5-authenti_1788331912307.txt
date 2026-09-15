@@ -1,0 +1,685 @@
+Farm2Fork — PHASE 6: FARMER CROP LISTINGS
+
+Phase 5 authentication is complete.
+
+CURRENT STATUS:
+
+React frontend: PASS
+FastAPI backend: PASS
+Supabase PostgreSQL: PASS
+Supabase Auth: PASS
+Core database schema: PASS
+RLS: ENABLED
+Authentication: IMPLEMENTED
+
+Existing Farm2Fork tables:
+
+profiles
+farmers
+buyers
+crop_listings
+orders
+order_items
+
+Existing Supabase Storage bucket:
+
+crop-images
+
+IMPORTANT:
+
+Phase 6 is ONLY about the FARMER CROP LISTING SYSTEM.
+
+Do not implement the buyer marketplace yet.
+Do not implement orders yet.
+Do not implement logistics yet.
+Do not implement AI/ML yet.
+Do not implement payments yet.
+
+==================================================
+1. FIRST INSPECT THE EXISTING DATABASE
+==================================================
+
+Before writing code, inspect the actual existing Supabase schema.
+
+Inspect:
+
+public.crop_listings
+public.farmers
+public.profiles
+
+Determine the exact existing:
+
+- columns
+- data types
+- primary key
+- foreign keys
+- constraints
+- defaults
+- RLS policies
+- indexes
+
+Do NOT assume column names.
+
+The existing Phase 4 schema is the source of truth.
+
+Do NOT recreate existing tables.
+
+Do NOT drop tables.
+
+Do NOT disable RLS.
+
+==================================================
+2. INSPECT EXISTING FRONTEND
+==================================================
+
+Inspect the current Farm2Fork frontend.
+
+Find:
+
+- Farmer Dashboard
+- Add Crop page/form
+- My Listings page
+- Existing navigation
+- Existing UI components
+- Existing API client
+- Authentication/session context
+
+Reuse the existing design system.
+
+Do NOT redesign the entire application.
+
+The farmer interface should remain:
+
+- simple
+- clean
+- mobile-friendly
+- easy to understand
+- suitable for users who may not be highly technical
+
+Use clear labels and large touch-friendly controls.
+
+==================================================
+3. FARMER AUTHORIZATION
+==================================================
+
+Only authenticated FARMER users can create/manage crop listings.
+
+The authenticated Supabase user ID must determine the farmer.
+
+NEVER trust a farmer_id supplied by the frontend.
+
+FastAPI must obtain the authenticated user identity from the verified Supabase JWT.
+
+Then resolve:
+
+auth.users.id
+    ↓
+profiles.id
+    ↓
+farmers.profile_id
+    ↓
+farmers.id
+
+All listing ownership must be tied to the authenticated farmer.
+
+==================================================
+4. CREATE CROP LISTING
+==================================================
+
+Implement:
+
+POST /api/farmer/listings
+
+The endpoint should create a crop listing belonging to the authenticated farmer.
+
+Use only fields that actually exist in the current crop_listings schema.
+
+The UI should support, where supported by the existing schema:
+
+- Crop name
+- Variety
+- Quantity
+- Unit
+- Price
+- Quality
+- Location
+- Harvest date
+- Description
+- Crop image
+
+Do not invent database columns.
+
+If a requested UI field does not have a corresponding database field, report it before modifying the schema.
+
+Validate:
+
+- crop name required
+- quantity must be positive
+- price must be non-negative
+- required fields cannot be empty
+- invalid dates rejected
+- excessively large/unreasonable input rejected
+- image type and size validated
+
+Never trust price, quantity, farmer ID, or ownership information from the frontend without backend validation.
+
+==================================================
+5. GET FARMER'S LISTINGS
+==================================================
+
+Implement:
+
+GET /api/farmer/listings
+
+Return only listings belonging to the authenticated farmer.
+
+Never return another farmer's private listing data.
+
+Support useful information such as:
+
+- crop name
+- quantity
+- price
+- status
+- location
+- image
+- created date
+- updated date
+
+Use pagination if the existing API architecture supports it.
+
+==================================================
+6. GET SINGLE LISTING
+==================================================
+
+Implement:
+
+GET /api/farmer/listings/{listing_id}
+
+The authenticated farmer may only access their own listing.
+
+If the listing belongs to another farmer:
+
+return HTTP 403 or 404 appropriately.
+
+Do not leak another farmer's listing details.
+
+==================================================
+7. UPDATE LISTING
+==================================================
+
+Implement:
+
+PUT/PATCH /api/farmer/listings/{listing_id}
+
+A farmer can update their own listing.
+
+Do not allow a farmer to change ownership.
+
+Do not allow the frontend to change:
+
+farmer_id
+
+or any other ownership/security field.
+
+Respect the existing allowed status values and database constraints.
+
+==================================================
+8. DEACTIVATE LISTING
+==================================================
+
+Implement a safe listing deactivation mechanism.
+
+Use the existing crop_listings status field and its existing allowed values.
+
+Do not physically delete the listing unless the existing product requirements specifically require deletion.
+
+Prefer changing the listing to the existing inactive status.
+
+Example:
+
+ACTIVE
+  ↓
+INACTIVE
+
+An inactive listing should not appear in the future buyer marketplace.
+
+Do not invent a new status.
+
+==================================================
+9. IMAGE UPLOAD
+==================================================
+
+Use the existing Supabase Storage bucket:
+
+crop-images
+
+The bucket is PRIVATE.
+
+Do NOT make the bucket public.
+
+Do NOT expose service-role credentials to React.
+
+Do NOT expose SUPABASE_DATABASE_URL to React.
+
+Implement secure image upload.
+
+Recommended ownership structure:
+
+crop-images/
+    farmer-id/
+        listing-id/
+            image-file
+
+Use authenticated ownership when generating upload paths.
+
+Validate:
+
+- allowed image formats
+- maximum file size
+- upload errors
+- ownership
+
+Do not allow one farmer to modify another farmer's crop images.
+
+Use signed URLs or the appropriate authenticated Supabase Storage mechanism for displaying private images.
+
+Do not expose permanent public URLs for private images.
+
+==================================================
+10. FASTAPI ARCHITECTURE
+==================================================
+
+Follow the existing FastAPI project structure.
+
+Use:
+
+- routers
+- Pydantic schemas
+- SQLAlchemy models/query layer
+- authentication dependency
+- proper HTTP status codes
+- proper error handling
+
+Do not put database logic directly into React.
+
+The architecture should remain:
+
+React
+  ↓
+FastAPI
+  ↓
+SQLAlchemy
+  ↓
+Supabase PostgreSQL
+
+Authentication:
+
+React
+  ↓
+Supabase Auth
+  ↓
+Bearer token
+  ↓
+FastAPI JWT verification
+
+==================================================
+11. FRONTEND — ADD CROP
+==================================================
+
+Connect the existing Add Crop UI to the real API.
+
+The form should have:
+
+Crop Name
+Variety
+Quantity
+Unit
+Price
+Quality
+Location
+Harvest Date
+Description
+Image
+
+Use appropriate input types.
+
+For example:
+
+Quantity → number input
+Price → number input
+Harvest date → date picker
+
+Show clear validation messages.
+
+During submission:
+
+Disable the submit button.
+
+Show a loading state.
+
+Prevent duplicate submissions.
+
+On success:
+
+- show success feedback
+- clear/reset the form where appropriate
+- refresh the farmer listings
+- navigate to My Listings if that matches the existing UI
+
+On failure:
+
+Show a user-friendly error.
+
+Never show raw SQL/database errors to the farmer.
+
+==================================================
+12. FRONTEND — MY LISTINGS
+==================================================
+
+Build/connect the Farmer "My Listings" page.
+
+Each listing should show:
+
+- crop image
+- crop name
+- quantity
+- price
+- location
+- status
+- relevant date
+
+Provide actions:
+
+[View]
+[Edit]
+[Deactivate]
+
+Only show actions allowed for the current farmer.
+
+Use cards on mobile and an appropriate layout on desktop.
+
+Keep the UI simple.
+
+==================================================
+13. FARMER DASHBOARD
+==================================================
+
+Connect the dashboard to real data.
+
+Useful summary cards:
+
+Total Listings
+Active Listings
+Inactive Listings
+Total Available Quantity
+
+Do not invent statistics that cannot be calculated from the database.
+
+The dashboard should load data from FastAPI.
+
+No hardcoded demo crop data should remain in the farmer listing flow.
+
+==================================================
+14. SECURITY / RLS
+==================================================
+
+DO NOT disable RLS.
+
+DO NOT create broad policies such as:
+
+USING (true)
+
+for farmer write access.
+
+Existing RLS policies are the source of truth.
+
+Verify that:
+
+Farmer A cannot modify Farmer B's listing.
+
+Farmer A cannot upload/manage Farmer B's images.
+
+Unauthenticated users cannot create listings.
+
+Buyer users cannot create farmer listings.
+
+A farmer cannot change listing ownership.
+
+A farmer cannot manipulate another farmer's listing ID to gain access.
+
+==================================================
+15. DATABASE CHANGES
+
+Prefer ZERO database schema changes.
+
+The Phase 4 database already contains:
+
+crop_listings
+farmers
+profiles
+
+Before changing anything, inspect the schema.
+
+If the existing schema fully supports Phase 6:
+
+DO NOT modify the database.
+
+If a genuinely necessary field is missing:
+
+STOP and report:
+
+- missing field
+- why it is required
+- proposed type
+- proposed constraint
+
+Do not automatically modify the schema.
+
+==================================================
+16. ERROR HANDLING
+
+Handle:
+
+401 Unauthorized
+403 Forbidden
+404 Not Found
+400 Validation Error
+409 Conflict where appropriate
+413 Image Too Large
+429 Rate Limit if applicable
+500 Server Error
+
+Frontend should convert technical errors into simple messages.
+
+Never expose:
+
+- database passwords
+- SUPABASE_DATABASE_URL
+- service-role keys
+- access tokens
+- refresh tokens
+- SQL queries
+- stack traces
+
+==================================================
+17. TESTING
+
+Perform automated/API tests where possible.
+
+Test:
+
+TEST 1:
+Authenticated farmer creates listing.
+
+Expected:
+HTTP success.
+Listing appears in crop_listings.
+
+TEST 2:
+Farmer retrieves own listings.
+
+Expected:
+Only own listings returned.
+
+TEST 3:
+Farmer edits own listing.
+
+Expected:
+Update succeeds.
+
+TEST 4:
+Farmer deactivates own listing.
+
+Expected:
+Status changes to the existing inactive status.
+
+TEST 5:
+Farmer attempts to access another farmer's listing.
+
+Expected:
+Access denied.
+
+TEST 6:
+Buyer attempts farmer listing creation.
+
+Expected:
+HTTP 403/authorization failure.
+
+TEST 7:
+Unauthenticated user attempts listing creation.
+
+Expected:
+HTTP 401.
+
+TEST 8:
+Farmer uploads crop image.
+
+Expected:
+Image stored in private crop-images bucket.
+
+TEST 9:
+Farmer attempts to manage another farmer's image.
+
+Expected:
+Access denied.
+
+TEST 10:
+Invalid quantity.
+
+Expected:
+Validation failure.
+
+TEST 11:
+Negative price.
+
+Expected:
+Validation failure.
+
+TEST 12:
+Duplicate submit.
+
+Expected:
+Only one listing created.
+
+==================================================
+18. MANUAL TEST CHECKLIST
+
+After implementation, provide exact instructions for me to manually test:
+
+1. Login as farmer
+2. Open Add Crop
+3. Add a real test crop
+4. Upload image
+5. Submit
+6. Open My Listings
+7. Edit listing
+8. Deactivate listing
+9. Refresh page
+10. Verify data persists
+11. Logout
+12. Verify protected farmer pages require login
+
+Do NOT create test accounts automatically.
+
+==================================================
+19. PRODUCTION READINESS
+
+Ensure:
+
+- TypeScript passes
+- Python compilation passes
+- frontend build passes
+- FastAPI starts
+- API endpoints respond
+- no console errors caused by Phase 6
+- no secret values appear in frontend bundle
+- no database credentials appear in logs
+
+==================================================
+20. IMPORTANT SCOPE LIMIT
+
+STOP after Phase 6.
+
+Do NOT implement:
+
+- Buyer marketplace
+- Orders
+- Payments
+- Logistics
+- Route optimization
+- AI demand forecasting
+- AI price prediction
+- Notifications
+- Admin analytics
+
+Those will be separate phases.
+
+==================================================
+FINAL REPORT
+
+At the end report:
+
+PHASE 6
+
+Database schema modified: YES/NO
+RLS modified: YES/NO
+Replit PostgreSQL used: YES/NO
+
+FARMER LISTINGS
+Create listing: PASS/FAIL
+View own listings: PASS/FAIL
+View single listing: PASS/FAIL
+Edit listing: PASS/FAIL
+Deactivate listing: PASS/FAIL
+
+IMAGES
+Crop image upload: PASS/FAIL
+Private storage maintained: PASS/FAIL
+Cross-farmer image access blocked: PASS/FAIL
+
+SECURITY
+Unauthenticated creation blocked: PASS/FAIL
+Buyer creation blocked: PASS/FAIL
+Cross-farmer access blocked: PASS/FAIL
+Ownership controlled by authenticated user: PASS/FAIL
+Secrets exposed: YES/NO
+
+FRONTEND
+Add Crop UI: PASS/FAIL
+My Listings UI: PASS/FAIL
+Dashboard data: PASS/FAIL
+Mobile UI: PASS/FAIL
+
+BACKEND
+FastAPI endpoints: PASS/FAIL
+Validation: PASS/FAIL
+Error handling: PASS/FAIL
+
+TESTING
+Automated tests: PASS/FAIL
+Frontend typecheck: PASS/FAIL
+Backend compilation: PASS/FAIL
+Production build: PASS/FAIL
+
+STOP HERE.

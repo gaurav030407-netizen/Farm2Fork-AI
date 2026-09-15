@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: farm2fork-node
+    runtime: node
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server build
+    startCommand: pnpm --filter @workspace/api-server start
+    healthCheckPath: /api/healthz
+
+  - type: web
+    name: farm2fork-fastapi
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health

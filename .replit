@@ -22,6 +22,10 @@ args = "Frontend"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
+args = "Node API"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
 args = "FastAPI Backend"
 
 [[workflows.workflow]]
@@ -45,6 +49,17 @@ output_type = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bash backend/run.sh"
+
+[[workflows.workflow]]
+name = "Node API"
+author = "replit"
+
+[workflows.workflow.metadata]
+output_type = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3000 pnpm --filter @workspace/api-server run dev"
 
 [agent]
 stack = "PNPM_WORKSPACE"

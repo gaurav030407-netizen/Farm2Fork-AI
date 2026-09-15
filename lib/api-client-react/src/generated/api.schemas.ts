@@ -46,49 +46,252 @@ export interface CropUpdate {
   status?: string;
 }
 
+export type FarmerListingStatus = typeof FarmerListingStatus[keyof typeof FarmerListingStatus];
+
+
+export const FarmerListingStatus = {
+  ACTIVE: 'ACTIVE',
+  SOLD: 'SOLD',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface FarmerListing {
+  id: string;
+  /** @nullable */
+  farmer_user_id?: string | null;
+  /** @nullable */
+  farmer_name?: string | null;
+  /** @nullable */
+  farmer_photo_url?: string | null;
+  crop_name: string;
+  /** @nullable */
+  variety: string | null;
+  quantity: number;
+  unit: string;
+  price: number;
+  /** @nullable */
+  quality: string | null;
+  location: string;
+  /** @nullable */
+  harvest_date: string | null;
+  /** @nullable */
+  image_url: string | null;
+  status: FarmerListingStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FarmerListingInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  crop_name: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  variety: string | null;
+  /**
+     * @maximum 10000000
+     * @exclusiveMinimum 0
+     */
+  quantity: number;
+  /**
+     * @minLength 1
+     * @maxLength 32
+     */
+  unit: string;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  price: number;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  quality: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  location: string;
+  /** @nullable */
+  harvest_date: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type FarmerListingUpdateStatus = typeof FarmerListingUpdateStatus[keyof typeof FarmerListingUpdateStatus] | null;
+
+
+export const FarmerListingUpdateStatus = {
+  ACTIVE: 'ACTIVE',
+  SOLD: 'SOLD',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface FarmerListingUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     * @nullable
+     */
+  crop_name?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  variety?: string | null;
+  /**
+     * @maximum 10000000
+     * @exclusiveMinimum 0
+     * @nullable
+     */
+  quantity?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 32
+     * @nullable
+     */
+  unit?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     * @nullable
+     */
+  price?: number | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  quality?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     * @nullable
+     */
+  location?: string | null;
+  /** @nullable */
+  harvest_date?: string | null;
+  /** @nullable */
+  status?: FarmerListingUpdateStatus;
+}
+
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
 
 export const OrderStatus = {
-  pending: 'pending',
-  confirmed: 'confirmed',
-  in_transit: 'in_transit',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  PROCESSING: 'PROCESSING',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
 } as const;
 
-export interface Order {
-  id: number;
-  crop: string;
-  farmer: string;
-  buyer: string;
+export interface OrderItem {
+  id: string;
+  crop_listing_id: string;
+  crop_name: string;
+  /** @nullable */
+  variety: string | null;
+  /** @nullable */
+  image_url: string | null;
   quantity: number;
-  total: number;
+  unit: string;
+  price: number;
+  subtotal: number;
+}
+
+export interface Order {
+  id: string;
   status: OrderStatus;
-  placedAt: string;
-  deliveryDate: string;
-  location: string;
+  payment_status: string;
+  total_amount: number;
+  delivery_location: string;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  buyer_name?: string | null;
+  /** @nullable */
+  farmer_name?: string | null;
+  items: OrderItem[];
 }
 
 export interface OrderInput {
-  cropId: number;
+  crop_listing_id: string;
+  /** @exclusiveMinimum 0 */
   quantity: number;
-  buyer: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  delivery_location: string;
 }
 
 export type OrderStatusInputStatus = typeof OrderStatusInputStatus[keyof typeof OrderStatusInputStatus];
 
 
 export const OrderStatusInputStatus = {
-  pending: 'pending',
-  confirmed: 'confirmed',
-  in_transit: 'in_transit',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  PROCESSING: 'PROCESSING',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
 } as const;
 
 export interface OrderStatusInput {
   status: OrderStatusInputStatus;
+}
+
+export type CallStatus = typeof CallStatus[keyof typeof CallStatus];
+
+
+export const CallStatus = {
+  RINGING: 'RINGING',
+  ACCEPTED: 'ACCEPTED',
+  ACTIVE: 'ACTIVE',
+  DECLINED: 'DECLINED',
+  ENDED: 'ENDED',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export interface Call {
+  call_id: string;
+  order_id: string;
+  status: CallStatus;
+  farmer_name: string;
+  /** @nullable */
+  crop_name: string | null;
+  farmer_profile_id: string;
+  expires_at: string;
+  /** @nullable */
+  accepted_at: string | null;
+  /** @nullable */
+  ended_at: string | null;
+}
+
+export interface CallInput {
+  order_id: string;
+}
+
+export type IceConfigIceServersItem = {
+  urls: string[];
+  /** @nullable */
+  username?: string | null;
+  /** @nullable */
+  credential?: string | null;
+};
+
+export interface IceConfig {
+  ice_servers: IceConfigIceServersItem[];
+  turn_configured: boolean;
 }
 
 export interface Activity {
@@ -125,7 +328,7 @@ export interface MarketInsights {
 }
 
 export interface LogisticsPlanInput {
-  orderIds: number[];
+  orderIds: string[];
   destination: string;
 }
 
@@ -148,16 +351,4 @@ export type ListCropsParams = {
 search?: string;
 category?: string;
 };
-
-export type ListOrdersParams = {
-role?: ListOrdersRole;
-};
-
-export type ListOrdersRole = typeof ListOrdersRole[keyof typeof ListOrdersRole];
-
-
-export const ListOrdersRole = {
-  farmer: 'farmer',
-  buyer: 'buyer',
-} as const;
 
