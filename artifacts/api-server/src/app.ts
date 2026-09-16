@@ -30,7 +30,23 @@ const frontendOrigins = (process.env.FRONTEND_ORIGINS ?? "http://localhost:5000,
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-app.use(cors({ origin: frontendOrigins, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (
+        frontendOrigins.includes(origin) ||
+        origin.endsWith(".netlify.app") ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1")
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 app.use(express.json({ verify: (request, _response, buffer) => { (request as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: true }));
