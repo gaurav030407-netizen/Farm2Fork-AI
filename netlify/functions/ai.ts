@@ -126,7 +126,7 @@ async function callGemini(message: string, role?: string, pageContext?: string):
 
 export default async function handler(req: Request) {
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/\.netlify\/functions\/ai/, "").replace(/^\/api\/ai/, "");
+  const path = url.pathname.replace(/^.*\/ai\/?/, "").replace(/\/+$/, "").replace(/\?.*$/, "").trim();
   const method = req.method.toUpperCase();
 
   // CORS headers

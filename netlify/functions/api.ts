@@ -3,7 +3,9 @@
  * Runs 100% free on Netlify directly querying Supabase PostgreSQL via PostgREST.
  */
 
-import jwt from "jsonwebtoken";
+import * as jwt from "jsonwebtoken";
+import authHandler from "./auth";
+import aiHandler from "./ai";
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -81,13 +83,23 @@ export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\/?/, "").replace(/^\/\.netlify\/functions\/api\/?/, "").trim();
 
+  // 1. Forward auth requests to dedicated auth serverless handler
+  if (path.startsWith("auth") || url.pathname.includes("/auth")) {
+    return authHandler(req);
+  }
+
+  // 2. Forward AI requests to dedicated AI serverless handler
+  if (path.startsWith("ai") || url.pathname.includes("/ai")) {
+    return aiHandler(req);
+  }
+
   try {
-    // 1. Healthz
+    // 3. Healthz
     if (path === "healthz" || path === "health") {
       return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: corsHeaders });
     }
 
-    // 2. Profile Me (GET / PATCH)
+    // 4. Profile Me (GET / PATCH)
     if (path === "profile/me") {
       const user = getAuthUser(req);
       if (!user) {
@@ -118,7 +130,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
     }
 
-    // 3. Crops & Varieties
+    // 5. Crops & Varieties
     if (path === "crops") {
       const cRes = await supabaseRest<any[]>("crops?order=name.asc");
       return new Response(JSON.stringify(cRes.data || []), { status: 200, headers: corsHeaders });
@@ -130,13 +142,13 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify(vRes.data || []), { status: 200, headers: corsHeaders });
     }
 
-    // 4. Marketplace Listings
+    // 6. Marketplace Listings
     if (path === "marketplace/listings" || path === "farmer/listings") {
       const lRes = await supabaseRest<any[]>("crop_listings?status=eq.ACTIVE&order=created_at.desc&limit=50");
       return new Response(JSON.stringify(lRes.data || []), { status: 200, headers: corsHeaders });
     }
 
-    // 5. Market Prices
+    // 7. Market Prices
     if (path.startsWith("market/prices") || path.startsWith("market/insights")) {
       const mRes = await supabaseRest<any[]>("market_prices?order=arrival_date.desc&limit=50");
       return new Response(JSON.stringify(mRes.data || []), { status: 200, headers: corsHeaders });

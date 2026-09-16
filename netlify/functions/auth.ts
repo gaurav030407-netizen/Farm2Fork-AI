@@ -3,8 +3,8 @@
  * Handles /api/auth/* routes directly in the cloud on Netlify (100% Free, No Credit Card).
  */
 
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import * as bcrypt from "bcryptjs";
+import * as jwt from "jsonwebtoken";
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -52,8 +52,15 @@ async function supabaseRest<T = any>(endpoint: string, options: RequestInit = {}
   }
 }
 
-// Send OTP email via Resend
+// Send OTP email via Resend + console fallback for serverless logs
 async function sendOtpEmail(toEmail: string, otp: string): Promise<boolean> {
+  console.log(`[Farm2Fork Auth] OTP generated for ${toEmail}: ${otp}`);
+
+  if (!RESEND_API_KEY) {
+    console.warn("[Farm2Fork Auth] RESEND_API_KEY is not configured in Netlify environment variables.");
+    return false;
+  }
+
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -67,11 +74,25 @@ async function sendOtpEmail(toEmail: string, otp: string): Promise<boolean> {
         to: [toEmail],
         subject: "Your Farm2Fork verification code",
         text: `Your Farm2Fork verification code is ${otp}. It expires in 10 minutes.`,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #15803d; margin-top: 0;">Farm2Fork Verification Code</h2>
+          <p>Your one-time login / verification code is:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 12px 24px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: inline-block; color: #166534;">
+            ${otp}
+          </div>
+          <p style="color: #64748b; font-size: 14px; margin-top: 20px;">This code expires in 10 minutes. If you did not request this code, please ignore this email.</p>
+        </div>`,
       }),
     });
-    return res.ok;
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[Farm2Fork Auth] Resend API error:", res.status, errText);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.error("Resend error:", err);
+    console.error("[Farm2Fork Auth] Resend request exception:", err);
     return false;
   }
 }
@@ -106,7 +127,11 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/api\/auth\/?/, "").replace(/^\/\.netlify\/functions\/auth\/?/, "").trim();
+  const path = url.pathname
+    .replace(/^.*\/auth\/?/, "")
+    .replace(/\/+$/, "")
+    .replace(/\?.*$/, "")
+    .trim();
 
   try {
     // --------------------------------------------------------------------------
@@ -171,8 +196,8 @@ export default async function handler(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ detail: "Email address or mobile number is required." }), { status: 400, headers: corsHeaders });
       }
 
-      // Check if profile exists
-      const filter = method === "EMAIL" ? `email=eq.${encodeURIComponent(identifier)}` : `phone_number=eq.${encodeURIComponent(identifier)}`;
+      // Check if profile exists (case-insensitive for email)
+      const filter = method === "EMAIL" ? `email=ilike.${encodeURIComponent(identifier)}` : `phone_number=eq.${encodeURIComponent(identifier)}`;
       const profileRes = await supabaseRest<any[]>(`profiles?${filter}&account_status=eq.ACTIVE&select=id,email,email_verified,phone_verified`);
       const profile = profileRes.data?.[0];
 
@@ -216,8 +241,8 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       // Deliver OTP via Resend if email
-      if (method === "EMAIL" && profile?.email) {
-        await sendOtpEmail(profile.email, otp);
+      if (method === "EMAIL") {
+        await sendOtpEmail(identifier, otp);
       }
 
       return new Response(JSON.stringify({ ok: true, resendAvailableIn: 60 }), { status: 202, headers: corsHeaders });
@@ -243,7 +268,7 @@ export default async function handler(req: Request): Promise<Response> {
       const challenge = chalRes.data?.[0];
 
       if (!challenge || new Date(challenge.expires_at).getTime() <= Date.now() || challenge.attempts >= 5) {
-        return new Response(JSON.stringify({ detail: "Invalid or expired OTP." }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ detail: "Invalid or expired OTP. Please request a new code." }), { status: 400, headers: corsHeaders });
       }
 
       const isValid = await bcrypt.compare(otp, challenge.otp_hash);
@@ -262,12 +287,15 @@ export default async function handler(req: Request): Promise<Response> {
       });
 
       // Fetch user profile
-      const filter = method === "EMAIL" ? `email=eq.${encodeURIComponent(identifier)}` : `phone_number=eq.${encodeURIComponent(identifier)}`;
+      const filter = method === "EMAIL" ? `email=ilike.${encodeURIComponent(identifier)}` : `phone_number=eq.${encodeURIComponent(identifier)}`;
       const profileRes = await supabaseRest<any[]>(`profiles?${filter}&account_status=eq.ACTIVE&select=id,name,email,role`);
       const profile = profileRes.data?.[0];
 
       if (!profile) {
-        return new Response(JSON.stringify({ detail: "User profile not found." }), { status: 404, headers: corsHeaders });
+        return new Response(
+          JSON.stringify({ detail: "No registered profile found for this account. Please click 'Create a profile' below to register." }),
+          { status: 404, headers: corsHeaders },
+        );
       }
 
       let farmer_id: string | null = null;
@@ -314,7 +342,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       const profileRes = await supabaseRest<any[]>(
-        `profiles?email=eq.${encodeURIComponent(email)}&account_status=eq.ACTIVE&select=id,name,email,role,password_hash`,
+        `profiles?email=ilike.${encodeURIComponent(email)}&account_status=eq.ACTIVE&select=id,name,email,role,password_hash`,
       );
       const profile = profileRes.data?.[0];
 
@@ -359,7 +387,240 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // --------------------------------------------------------------------------
-    // 5. POST /api/auth/admin-login
+    // 5. POST /api/auth/register
+    // --------------------------------------------------------------------------
+    if (req.method === "POST" && path === "register") {
+      const body = await req.json().catch(() => ({}));
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      const mobile = typeof body.mobile === "string" ? body.mobile.trim() : "";
+      const password = typeof body.password === "string" ? body.password : "";
+      const role = (body.role || "BUYER").toUpperCase() as AppRole;
+      const otpMethod = (body.otp_method || (mobile && !email ? "SMS" : "EMAIL")).toUpperCase();
+      const location = typeof body.location === "string" ? body.location.trim() : "";
+      const organizationName = role === "FARMER" ? (body.farm_name || `${name}'s Farm`) : (body.business_name || "");
+
+      if (!name || name.length > 120) {
+        return new Response(JSON.stringify({ detail: "Enter a valid name (up to 120 characters)." }), { status: 400, headers: corsHeaders });
+      }
+      if (!email && !mobile) {
+        return new Response(JSON.stringify({ detail: "Enter a valid email address or mobile number." }), { status: 400, headers: corsHeaders });
+      }
+      if (password.length < 8) {
+        return new Response(JSON.stringify({ detail: "Password must be at least 8 characters." }), { status: 400, headers: corsHeaders });
+      }
+
+      // Check if profile exists
+      if (email) {
+        const existingRes = await supabaseRest<any[]>(`profiles?email=ilike.${encodeURIComponent(email)}&select=id`);
+        if (existingRes.data && existingRes.data.length > 0) {
+          return new Response(JSON.stringify({ detail: "That email is already registered. Please sign in." }), { status: 409, headers: corsHeaders });
+        }
+      }
+
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const otpHash = await bcrypt.hash(otp, 10);
+      const passwordHash = await bcrypt.hash(password, 10);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      // Check pending registrations
+      const pendingRes = await supabaseRest<any[]>(`pending_registrations?email=ilike.${encodeURIComponent(email)}&select=id`);
+      const existingPending = pendingRes.data?.[0];
+
+      if (existingPending) {
+        await supabaseRest(`pending_registrations?id=eq.${existingPending.id}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            name,
+            password_hash: passwordHash,
+            role,
+            mobile: mobile || null,
+            location: location || null,
+            organization_name: organizationName || null,
+            otp_method: otpMethod,
+            otp_hash: otpHash,
+            otp_expires_at: expiresAt,
+            otp_attempts: 0,
+            otp_last_sent_at: new Date().toISOString(),
+          }),
+        });
+      } else {
+        await supabaseRest("pending_registrations", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            email,
+            name,
+            password_hash: passwordHash,
+            role,
+            mobile: mobile || null,
+            location: location || null,
+            organization_name: organizationName || null,
+            otp_method: otpMethod,
+            otp_hash: otpHash,
+            otp_expires_at: expiresAt,
+            otp_attempts: 0,
+            otp_last_sent_at: new Date().toISOString(),
+          }),
+        });
+      }
+
+      if (otpMethod === "EMAIL" && email) {
+        await sendOtpEmail(email, otp);
+      }
+
+      return new Response(
+        JSON.stringify({
+          needsEmailConfirmation: otpMethod === "EMAIL",
+          needsOtpConfirmation: true,
+          otpMethod,
+          resendAvailableIn: 60,
+        }),
+        { status: 202, headers: corsHeaders },
+      );
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. POST /api/auth/verify-email
+    // --------------------------------------------------------------------------
+    if (req.method === "POST" && (path === "verify-email" || path === "verify-otp")) {
+      const body = await req.json().catch(() => ({}));
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      const mobile = typeof body.mobile === "string" ? body.mobile.trim() : "";
+      const otp = typeof body.otp === "string" ? body.otp.trim() : "";
+
+      if ((!email && !mobile) || !otp) {
+        return new Response(JSON.stringify({ detail: "Enter your contact and six-digit verification code." }), { status: 400, headers: corsHeaders });
+      }
+
+      const filter = email ? `email=ilike.${encodeURIComponent(email)}` : `mobile=eq.${encodeURIComponent(mobile)}`;
+      const pRes = await supabaseRest<any[]>(`pending_registrations?${filter}&select=*`);
+      const pending = pRes.data?.[0];
+
+      if (!pending) {
+        return new Response(JSON.stringify({ detail: "Invalid contact or verification code." }), { status: 400, headers: corsHeaders });
+      }
+
+      if (new Date(pending.otp_expires_at).getTime() <= Date.now() || pending.otp_attempts >= 5) {
+        return new Response(JSON.stringify({ detail: "Verification code expired. Please request a new one." }), { status: 400, headers: corsHeaders });
+      }
+
+      const isValid = await bcrypt.compare(otp, pending.otp_hash);
+      if (!isValid) {
+        await supabaseRest(`pending_registrations?id=eq.${pending.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ otp_attempts: (pending.otp_attempts || 0) + 1 }),
+        });
+        return new Response(JSON.stringify({ detail: "Invalid verification code." }), { status: 400, headers: corsHeaders });
+      }
+
+      // Create new active profile in public.profiles
+      const profileId = crypto.randomUUID();
+      const insertProfileRes = await supabaseRest<any[]>("profiles", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          id: profileId,
+          name: pending.name,
+          email: pending.email,
+          password_hash: pending.password_hash,
+          role: pending.role,
+          mobile: pending.mobile || null,
+          phone_number: pending.mobile || null,
+          location: pending.location || null,
+          email_verified: true,
+          email_verified_at: new Date().toISOString(),
+          phone_verified: Boolean(pending.mobile),
+          phone_verified_at: pending.mobile ? new Date().toISOString() : null,
+          account_status: "ACTIVE",
+        }),
+      });
+
+      if (insertProfileRes.error) {
+        return new Response(JSON.stringify({ detail: `Profile creation failed: ${insertProfileRes.error}` }), { status: 500, headers: corsHeaders });
+      }
+
+      let farmer_id: string | null = null;
+      let buyer_id: string | null = null;
+
+      if (pending.role === "FARMER") {
+        const fRes = await supabaseRest<any[]>("farmers", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({ profile_id: profileId, farm_name: pending.organization_name || `${pending.name}'s Farm` }),
+        });
+        farmer_id = fRes.data?.[0]?.id || null;
+      } else if (pending.role === "BUYER" || pending.role === "CONSUMER") {
+        const bRes = await supabaseRest<any[]>("buyers", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({ profile_id: profileId, business_name: pending.organization_name || `${pending.name}'s Business` }),
+        });
+        buyer_id = bRes.data?.[0]?.id || null;
+      }
+
+      // Clean up pending registration
+      await supabaseRest(`pending_registrations?id=eq.${pending.id}`, { method: "DELETE" });
+
+      const user: UserProfile = {
+        id: profileId,
+        name: pending.name,
+        email: pending.email,
+        role: pending.role,
+        farmer_id,
+        buyer_id,
+      };
+
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
+      const responseHeaders = new Headers(corsHeaders);
+      responseHeaders.append(
+        "Set-Cookie",
+        `farm2fork_auth=${token}; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax; Secure`,
+      );
+
+      return new Response(JSON.stringify({ ok: true, user, token }), { status: 200, headers: responseHeaders });
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. POST /api/auth/resend-email-otp
+    // --------------------------------------------------------------------------
+    if (req.method === "POST" && path === "resend-email-otp") {
+      const body = await req.json().catch(() => ({}));
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+
+      if (!email) {
+        return new Response(JSON.stringify({ detail: "Email address is required." }), { status: 400, headers: corsHeaders });
+      }
+
+      const pRes = await supabaseRest<any[]>(`pending_registrations?email=ilike.${encodeURIComponent(email)}&select=id`);
+      const pending = pRes.data?.[0];
+
+      if (!pending) {
+        return new Response(JSON.stringify({ detail: "No pending registration found for this email." }), { status: 404, headers: corsHeaders });
+      }
+
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      await supabaseRest(`pending_registrations?id=eq.${pending.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          otp_hash: otpHash,
+          otp_expires_at: expiresAt,
+          otp_attempts: 0,
+          otp_last_sent_at: new Date().toISOString(),
+        }),
+      });
+
+      await sendOtpEmail(email, otp);
+
+      return new Response(JSON.stringify({ ok: true, resendAvailableIn: 60 }), { status: 200, headers: corsHeaders });
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. POST /api/auth/admin-login
     // --------------------------------------------------------------------------
     if (req.method === "POST" && path === "admin-login") {
       const body = await req.json().catch(() => ({}));
@@ -388,7 +649,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // --------------------------------------------------------------------------
-    // 6. POST /api/auth/logout
+    // 9. POST /api/auth/logout
     // --------------------------------------------------------------------------
     if (req.method === "POST" && path === "logout") {
       const responseHeaders = new Headers(corsHeaders);
