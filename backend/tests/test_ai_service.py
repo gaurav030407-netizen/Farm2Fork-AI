@@ -10,6 +10,8 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "postgresql://user:password@localhost:5432/farm2fork")
 os.environ.setdefault("JWT_SECRET", "test-secret-that-is-at-least-thirty-two-characters")
 
+from dataclasses import replace
+from backend.app.config import settings
 from backend.app.services.ai.domain_prompts import build_system_instruction
 from backend.app.services.ai.gemini_provider import GeminiError, GeminiProvider, ProviderResponse
 from backend.app.services.ai.ollama_provider import OllamaError, OllamaProvider
@@ -25,25 +27,51 @@ from backend.app.services.ai.tools import get_admin_operational_stats, get_user_
 @pytest.mark.asyncio
 async def test_gemini_available_returns_gemini_response():
     """Test 1: Gemini succeeds and returns primary provider response."""
-    orchestrator = AiOrchestrator()
-    orchestrator.gemini.generate = AsyncMock(
-        return_value=ProviderResponse(
-            content="Hello Farmer! You can list crops under Sell a Crop.",
-            provider="gemini",
-            is_fallback=False,
-            prompt_tokens=15,
-            completion_tokens=20,
+    with patch("backend.app.services.ai.orchestrator.settings", replace(settings, ai_provider="gemini")):
+        orchestrator = AiOrchestrator()
+        orchestrator.gemini.generate = AsyncMock(
+            return_value=ProviderResponse(
+                content="Hello Farmer! You can list crops under Sell a Crop.",
+                provider="gemini",
+                is_fallback=False,
+                prompt_tokens=15,
+                completion_tokens=20,
+            )
         )
-    )
 
-    resp = await orchestrator.execute_with_fallback(
-        messages=[{"role": "user", "content": "How do I sell a crop?"}],
-        system_instruction="Farmer system prompt",
-    )
+        resp = await orchestrator.execute_with_fallback(
+            messages=[{"role": "user", "content": "How do I sell a crop?"}],
+            system_instruction="Farmer system prompt",
+        )
 
-    assert resp.content == "Hello Farmer! You can list crops under Sell a Crop."
-    assert resp.provider == "gemini"
-    assert resp.is_fallback is False
+        assert resp.content == "Hello Farmer! You can list crops under Sell a Crop."
+        assert resp.provider == "gemini"
+        assert resp.is_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_ollama_primary_available_returns_ollama_response():
+    """Test 1b: Local Ollama configured as primary works 100% offline without API keys."""
+    with patch("backend.app.services.ai.orchestrator.settings", replace(settings, ai_provider="ollama")):
+        orchestrator = AiOrchestrator()
+        orchestrator.ollama.generate = AsyncMock(
+            return_value=ProviderResponse(
+                content="Local Ollama response: Farm2Fork custom model operational.",
+                provider="ollama",
+                is_fallback=False,
+                prompt_tokens=12,
+                completion_tokens=25,
+            )
+        )
+
+        resp = await orchestrator.execute_with_fallback(
+            messages=[{"role": "user", "content": "How do I sell a crop?"}],
+            system_instruction="Farmer system prompt",
+        )
+
+        assert resp.content == "Local Ollama response: Farm2Fork custom model operational."
+        assert resp.provider == "ollama"
+        assert resp.is_fallback is False
 
 
 @pytest.mark.asyncio
