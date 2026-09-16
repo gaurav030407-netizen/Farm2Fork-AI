@@ -8,6 +8,7 @@ export async function sendVerificationEmail(email: string, otp: string): Promise
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "User-Agent": "Farm2Fork-App/1.0",
     },
     body: JSON.stringify({
       from,
