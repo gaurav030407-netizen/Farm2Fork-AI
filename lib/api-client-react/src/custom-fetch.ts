@@ -348,6 +348,7 @@ export async function customFetch<T = unknown>(
   if (responseType === "json" && !headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
+  headers.set("bypass-tunnel-reminder", "true");
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.

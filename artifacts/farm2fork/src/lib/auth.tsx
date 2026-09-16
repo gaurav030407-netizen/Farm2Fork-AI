@@ -19,6 +19,7 @@ async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> 
   const startedAt = performance.now();
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json");
+  headers.set("Bypass-Tunnel-Reminder", "true");
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 30000);
   const abortExternal = () => controller.abort();
