@@ -37,6 +37,75 @@ interface AiStatus {
   ollama_model?: string;
 }
 
+function getLocalKnowledgeReply(query: string, role?: string | null): { reply: string; suggestions: string[] } | null {
+  const q = query.toLowerCase().trim();
+
+  if (q.includes("what is farm2fork") || q.includes("about farm2fork") || q.includes("how does farm2fork work")) {
+    return {
+      reply: "Farm2Fork is a transparent agricultural marketplace connecting verified Indian farmers directly with bulk commercial buyers and household consumers.\n\nKey features:\n• Direct Farm-to-Table: Farmers sell crops directly at transparent prices.\n• Market Intelligence: Real APMC mandi modal price references.\n• Escrow Protection: Digital payments secured until delivery verification.\n• Verified Delivery: Local drivers with secure OTP pickup verification.",
+      suggestions: ["How do farmers sell produce here?", "How do I buy fresh crops?", "What does modal price mean?"],
+    };
+  }
+
+  if (q.includes("sell") || q.includes("add a crop") || q.includes("listing") || q.includes("how to sell")) {
+    return {
+      reply: "To sell a crop as a Farmer:\n1. Open 'Sell a Crop' from your dashboard.\n2. Select the specific Crop and Variety (e.g. Potato → Kufri Jyoti).\n3. Enter your available quantity (in quintals or kg) and asking price per unit.\n4. Upload verified crop photos showing real produce condition.\n5. Click 'Publish Listing' to make it live for buyers.",
+      suggestions: ["What does modal price mean?", "How do I upload crop photos?", "How does pickup verification work?"],
+    };
+  }
+
+  if (q.includes("modal price") || q.includes("modal") || q.includes("mandi price")) {
+    return {
+      reply: "Modal Price is the most frequently occurring transaction price observed at an APMC mandi on a given arrival date. It represents the central market tendency. Unlike minimum or maximum prices, modal price reflects the price point where the largest volume actually traded. Check 'Market Insights' before setting your asking price!",
+      suggestions: ["What is the difference between Crop and Variety?", "How do I sell a crop?", "Where can I compare mandis?"],
+    };
+  }
+
+  if (q.includes("crop vs variety") || q.includes("crop and variety") || q.includes("variety")) {
+    return {
+      reply: "In agriculture, Crop ≠ Variety:\n• Crop: The general plant species (e.g. Potato, Tomato, Onion, Wheat).\n• Variety: The specific cultivated botanical or commercial strain (e.g. for Potato: Kufri Jyoti, Kufri Pukhraj; for Tomato: Vaishali, Abhinav; for Onion: Nasik Red).\n\nNever call a crop name a variety. Knowing your exact variety helps you get the true market price!",
+      suggestions: ["What does modal price mean?", "How do I add a crop to sell?", "Where can I compare mandis?"],
+    };
+  }
+
+  if (q.includes("bulk") || q.includes("wholesale") || role === "buyer") {
+    return {
+      reply: "To source wholesale produce as a Bulk Buyer:\n1. Open the 'Marketplace' and filter by Crop, Variety, and Location (State/District).\n2. Compare farmer asking prices against official mandi modal references.\n3. Click a listing to inspect quality photos and farm harvest details.\n4. Place a bulk order or message the farmer directly with escrow payment protection.",
+      suggestions: ["How do I contact a farmer?", "Where can I see market prices?", "How does payment protection work?"],
+    };
+  }
+
+  if (q.includes("2 kg") || q.includes("consumer") || q.includes("buy")) {
+    return {
+      reply: "To purchase fresh produce as a Consumer:\n1. Browse the 'Marketplace' for nearby farm listings.\n2. Choose fresh local produce for fast delivery.\n3. Select your quantity (e.g. 2 kg tomatoes or 5 kg potatoes) and add to cart.\n4. Enter your delivery address and checkout securely. You can track delivery directly from your Orders page!",
+      suggestions: ["How do I track my order delivery?", "How do I pay securely?", "What is Farm2Fork?"],
+    };
+  }
+
+  if (q.includes("driver") || q.includes("pickup") || q.includes("verification")) {
+    return {
+      reply: "For Logistics Drivers:\n1. View 'Nearby Pickups' assigned in your operating district.\n2. When arriving at the farm, inspect cargo and enter the secure pickup verification code.\n3. Transport the produce safely to the destination.\n4. Confirm drop-off to receive transparent earnings directly in your wallet.",
+      suggestions: ["Where can I see my earnings?", "How does pickup verification work?", "What is Farm2Fork?"],
+    };
+  }
+
+  if (q.includes("pay") || q.includes("payment") || q.includes("escrow") || q.includes("refund")) {
+    return {
+      reply: "Farm2Fork uses secure digital escrow payments. When a buyer places an order, funds are held securely until the crop is delivered and verified. Once delivery confirmation is completed, funds are automatically disbursed to the farmer.",
+      suggestions: ["How do I track my order delivery?", "How do I buy fresh crops?", "What is Farm2Fork?"],
+    };
+  }
+
+  if (q.includes("photo") || q.includes("image") || q.includes("upload")) {
+    return {
+      reply: "To upload crop photos:\n1. Go to 'Sell a Crop' or edit an existing listing.\n2. In the Media section, upload clear, well-lit photos of your actual harvested produce.\n3. Verified real crop photos build buyer trust and lead to faster orders!",
+      suggestions: ["How do I sell a crop?", "What does modal price mean?", "What is Farm2Fork?"],
+    };
+  }
+
+  return null;
+}
+
 export function AiAssistantDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -149,31 +218,52 @@ export function AiAssistantDrawer() {
     abortControllerRef.current = controller;
 
     try {
-      const response = await fetch(apiUrl('/api/ai/chat'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        signal: controller.signal,
-        body: JSON.stringify({
-          message: queryText,
-          conversation_id: conversationId,
-          page_context: location,
-          role: appRole ? appRole.toUpperCase() : 'GUEST',
-        }),
-      });
+      let data: any = null;
+      try {
+        const response = await fetch(apiUrl('/api/ai/chat'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: queryText,
+            conversation_id: conversationId,
+            page_context: location,
+            role: appRole ? appRole.toUpperCase() : 'GUEST',
+          }),
+        });
 
-      if (!response.ok) {
-        if (response.status === 429) {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          data = await response.json();
+        } else if (response.status === 429) {
           throw new Error('Too many requests. Please wait a moment before sending another message.');
-        }
-        if (response.status === 503) {
+        } else if (response.status === 503) {
           throw new Error('AI assistance is temporarily unavailable.');
         }
-        const errJson = await response.json().catch(() => null);
-        throw new Error(errJson?.detail ?? 'Unable to complete AI request.');
+      } catch (fetchErr: any) {
+        if (fetchErr.name === 'AbortError') return;
+        // Network error or backend offline: fall through to built-in knowledge responder
       }
 
-      const data = await response.json();
+      // If backend was not reached or returned non-JSON (e.g. Netlify SPA fallback),
+      // resolve with our built-in domain knowledge responder!
+      if (!data) {
+        const localKnowledge = getLocalKnowledgeReply(queryText, appRole);
+        if (localKnowledge) {
+          data = {
+            reply: localKnowledge.reply,
+            provider: 'Farm2Fork Assistant',
+            is_fallback: false,
+            suggestions: localKnowledge.suggestions,
+          };
+        } else {
+          throw new Error(
+            'AI assistance is temporarily unavailable. If you are on Netlify, please configure your backend API URL in VITE_API_BASE_URL.'
+          );
+        }
+      }
+
       if (data.conversation_id) {
         setConversationId(data.conversation_id);
       }
@@ -193,8 +283,7 @@ export function AiAssistantDrawer() {
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      const msg = err.message || 'AI assistance is temporarily unavailable.';
-      setErrorMessage(msg);
+      setErrorMessage(err.message || 'AI assistance is temporarily unavailable.');
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

@@ -107,7 +107,16 @@ export function MarketPriceAssistant({
         }),
       });
 
-      if (!response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || !contentType.includes('application/json')) {
+        if (response.status === 429) {
+          throw new Error('Too many requests. Please wait a moment before analyzing prices again.');
+        }
+        if (!contentType.includes('application/json')) {
+          throw new Error(
+            'Live market data requires connection to the Farm2Fork backend API. When deployed on Netlify, configure VITE_API_BASE_URL to point to your backend service.'
+          );
+        }
         const errJson = await response.json().catch(() => null);
         throw new Error(errJson?.detail ?? 'Unable to fetch market price analysis.');
       }
