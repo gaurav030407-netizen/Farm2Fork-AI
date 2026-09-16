@@ -8,6 +8,14 @@
   PNPM_VERSION = "10.34.5"
   PNPM_FLAGS = "--no-frozen-lockfile"
 
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/api/ai/*"
+  to = "/.netlify/functions/ai/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
