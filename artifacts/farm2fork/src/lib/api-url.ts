@@ -1,6 +1,10 @@
 const configuredApiUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
 
-const configuredApiRoot = configuredApiUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+const isNetlifyHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.netlify.app');
+const shouldIgnoreTunnel = isNetlifyHost && configuredApiUrl.includes('loca.lt');
+const activeApiUrl = shouldIgnoreTunnel ? '' : configuredApiUrl;
+
+const configuredApiRoot = activeApiUrl.replace(/\/+$/, '').replace(/\/api$/, '');
 
 export const apiBaseUrl = configuredApiRoot || '';
 
