@@ -80,3 +80,15 @@ async def get_current_user(
         role=role,
         access_token=credentials.credentials,
     )
+
+
+async def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> AuthenticatedUser | None:
+    """Extract authenticated user if a valid bearer token is provided, else return None."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        return None
+    try:
+        return await get_current_user(credentials)
+    except HTTPException:
+        return None

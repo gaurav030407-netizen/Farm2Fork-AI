@@ -17,6 +17,7 @@ from .routes.driver import router as driver_router
 from .routes.payments import router as payments_router
 from .routes.admin import public_router as public_content_router
 from .routes.admin import router as admin_router
+from .routes.ai import router as ai_router
 
 
 app = FastAPI(
@@ -46,3 +47,4 @@ app.include_router(driver_router)
 app.include_router(payments_router)
 app.include_router(admin_router)
 app.include_router(public_content_router)
+app.include_router(ai_router)

@@ -12,6 +12,7 @@ import marketRouter from "./market";
 import driverRouter from "./driver";
 import paymentRouter from "./payments";
 import adminRouter from "./admin";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(marketRouter);
 router.use(driverRouter);
 router.use(paymentRouter);
 router.use(adminRouter);
+router.use(aiRouter);
 
 export default router;

@@ -30,11 +30,13 @@ import {
   Trash2,
   TrendingUp,
   Truck,
+  Scale,
   User,
   Users,
   WalletCards,
   X,
 } from "lucide-react";
+import { MarketPriceAssistant } from "@/components/ai/market-price-assistant";
 import {
   getGetDashboardQueryKey,
   getGetFarmerListingQueryKey,
@@ -3782,6 +3784,7 @@ export function Orders({ role }: { role: AppRole }) {
 }
 
 export function Insights() {
+  const [activeTab, setActiveTab] = useState<"assistant" | "table">("assistant");
   const [commodity, setCommodity] = useState("");
   const [searchCommodity, setSearchCommodity] = useState("");
   const [variety, setVariety] = useState("");
@@ -3824,14 +3827,47 @@ export function Insights() {
     <div className="space-y-7">
       <SectionTitle
         eyebrow="Market intelligence"
-        title="Government mandi prices"
-        detail="Search current official market records before you sell."
+        title="Market intelligence & price assistance"
+        detail="Analyze official market reference rates and decision support before you sell or buy."
         action={
-          <Button variant="secondary" onClick={() => void query.refetch()} disabled={query.isFetching}>
-            <TrendingUp size={15} /> {query.isFetching ? "Refreshing..." : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab("assistant")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  activeTab === "assistant"
+                    ? "bg-[#163625] text-white shadow-xs"
+                    : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                }`}
+              >
+                <Scale size={14} /> Price Assistant
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("table")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  activeTab === "table"
+                    ? "bg-[#163625] text-white shadow-xs"
+                    : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                }`}
+              >
+                <BarChart3 size={14} /> Mandi Records
+              </button>
+            </div>
+            {activeTab === "table" && (
+              <Button variant="secondary" onClick={() => void query.refetch()} disabled={query.isFetching}>
+                <TrendingUp size={15} /> {query.isFetching ? "Refreshing..." : "Refresh"}
+              </Button>
+            )}
+          </div>
         }
       />
+
+      {activeTab === "assistant" ? (
+        <MarketPriceAssistant />
+      ) : (
+        <>
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <label className="text-xs font-semibold">Crop / commodity<input value={commodity} onChange={(event) => setCommodity(event.target.value)} placeholder="Potato, Tomato, Onion" className="mt-2 h-10 w-full rounded-lg border border-[hsl(var(--border))] bg-transparent px-3 text-sm" /></label>
@@ -3853,6 +3889,8 @@ export function Insights() {
         <table className="min-w-[760px] w-full text-left text-sm"><thead className="bg-[hsl(var(--muted))] text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]"><tr><th className="p-4">Commodity / variety</th><th className="p-4">Mandi</th><th className="p-4">Grade</th><th className="p-4">Market date</th><th className="p-4">Minimum</th><th className="p-4">Maximum</th><th className="p-4">Modal</th></tr></thead><tbody className="divide-y divide-[hsl(var(--border))]">{records.map((record: MarketPriceRecord, index) => <tr key={`${record.commodity}-${record.variety}-${record.market}-${record.arrival_date}-${index}`}><td className="p-4"><div className="font-semibold">{record.commodity}</div><div className="text-xs text-[hsl(var(--muted-foreground))]">{displayVariety(record.commodity, record.variety)}</div></td><td className="p-4">{record.market ?? "Market unavailable"}<div className="text-xs text-[hsl(var(--muted-foreground))]">{record.district ?? record.state ?? "Location unavailable"}</div></td><td className="p-4">{record.grade ?? "Not specified"}</td><td className="p-4">{formatDate(record.arrival_date)}</td><td className="p-4 font-mono-ui">{formatPrice(record.min_price)}</td><td className="p-4 font-mono-ui">{formatPrice(record.max_price)}</td><td className="p-4 font-mono-ui font-bold">{formatPrice(record.modal_price)}<div className="text-[10px] font-normal text-[hsl(var(--muted-foreground))]">{record.unit ?? "Official unit unavailable"}</div></td></tr>)}</tbody></table>
       </div>}
       <p className="text-xs leading-5 text-[hsl(var(--muted-foreground))]">Market prices are sourced from the Government of India's data.gov.in platform. Prices are indicative and may differ from the actual negotiated price at a particular mandi.</p>
+        </>
+      )}
     </div>
   );
 }

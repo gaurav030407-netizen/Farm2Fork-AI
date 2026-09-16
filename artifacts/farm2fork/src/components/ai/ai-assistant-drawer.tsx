@@ -1,0 +1,421 @@
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'wouter';
+import {
+  AlertCircle,
+  Bot,
+  CheckCircle2,
+  ChevronDown,
+  Cpu,
+  Loader2,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  RefreshCw,
+  Send,
+  Sparkles,
+  User,
+  X,
+} from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { apiUrl } from '@/lib/api-url';
+
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  content: string;
+  provider?: string;
+  isFallback?: boolean;
+  timestamp: string;
+}
+
+interface AiStatus {
+  configured_provider: string;
+  gemini_configured: boolean;
+  ollama_available: boolean;
+  fallback_available: boolean;
+  gemini_model?: string;
+  ollama_model?: string;
+}
+
+export function AiAssistantDrawer() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<AiStatus | null>(null);
+
+  const { appRole, isAuthenticated, profile } = useAuth();
+  const [location] = useLocation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch operational status on mount or when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch(apiUrl('/api/ai/status'), { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setStatus(data);
+      })
+      .catch(() => undefined);
+  }, [isOpen]);
+
+  // Set initial contextual greeting and suggestions when opened
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      const roleName = appRole
+        ? appRole.charAt(0).toUpperCase() + appRole.slice(1)
+        : 'Guest';
+      const welcomeMessage: ChatMessage = {
+        id: 'welcome-0',
+        sender: 'assistant',
+        content: `Hello${profile?.name ? `, ${profile.name}` : ''}! I am your Farm2Fork AI Assistant. How can I help you today?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages([welcomeMessage]);
+
+      // Set default contextual suggestions
+      if (appRole === 'farmer') {
+        setSuggestions([
+          'How do I add a crop to sell?',
+          'What does modal price mean?',
+          'How do I upload crop photos?',
+          'How does driver pickup verification work?',
+        ]);
+      } else if (appRole === 'buyer') {
+        setSuggestions([
+          'How do I place a bulk order?',
+          'How do I contact a farmer?',
+          'Where can I compare mandi prices?',
+          'How does payment protection work?',
+        ]);
+      } else if (appRole === 'consumer') {
+        setSuggestions([
+          'How do I buy 2 kg tomatoes?',
+          'How do I track my order delivery?',
+          'How do I pay securely?',
+        ]);
+      } else if (appRole === 'driver') {
+        setSuggestions([
+          'How do I accept a pickup?',
+          'How does pickup verification work?',
+          'Where can I see my earnings?',
+        ]);
+      } else if (appRole === 'admin') {
+        setSuggestions([
+          'How many active listings exist?',
+          'Show market data sync status',
+          'How many pending driver approvals exist?',
+        ]);
+      } else {
+        setSuggestions([
+          'What is Farm2Fork?',
+          'How do farmers sell produce here?',
+          'How do I buy fresh crops?',
+        ]);
+      }
+    }
+  }, [isOpen, messages.length, appRole, profile]);
+
+  // Auto-scroll to bottom of messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isLoading]);
+
+  const handleSendMessage = async (textToSend?: string) => {
+    const queryText = (textToSend ?? input).trim();
+    if (!queryText || isLoading) return;
+
+    setInput('');
+    setErrorMessage(null);
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      content: queryText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const response = await fetch(apiUrl('/api/ai/chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        signal: controller.signal,
+        body: JSON.stringify({
+          message: queryText,
+          conversation_id: conversationId,
+          page_context: location,
+          role: appRole ? appRole.toUpperCase() : 'GUEST',
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Too many requests. Please wait a moment before sending another message.');
+        }
+        if (response.status === 503) {
+          throw new Error('AI assistance is temporarily unavailable.');
+        }
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.detail ?? 'Unable to complete AI request.');
+      }
+
+      const data = await response.json();
+      if (data.conversation_id) {
+        setConversationId(data.conversation_id);
+      }
+      if (data.suggestions && Array.isArray(data.suggestions)) {
+        setSuggestions(data.suggestions);
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        content: data.reply,
+        provider: data.provider,
+        isFallback: data.is_fallback,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      const msg = err.message || 'AI assistance is temporarily unavailable.';
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleClear = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setMessages([]);
+    setConversationId(null);
+    setErrorMessage(null);
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    void handleSendMessage();
+  };
+
+  return (
+    <>
+      {/* Floating Button in Bottom-Right Corner */}
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[#163625] px-4 py-3 text-white shadow-xl ring-2 ring-[#f4a024]/40 transition-all hover:scale-105 hover:bg-[#1a412c] focus:outline-hidden"
+          aria-label="Ask Farm2Fork AI Assistant"
+          data-testid="button-ai-assistant-toggle"
+        >
+          <span className="relative flex size-6 items-center justify-center rounded-full bg-[#f4a024] text-white">
+            <Sparkles size={14} />
+          </span>
+          <span className="text-sm font-semibold tracking-tight">Ask Farm2Fork</span>
+        </button>
+      )}
+
+      {/* Slide-over Drawer / Panel */}
+      {isOpen && (
+        <aside
+          aria-label="Farm2Fork AI Assistant"
+          className={`fixed bottom-4 right-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl transition-all duration-200 ${
+            isExpanded
+              ? 'h-[85vh] w-[95vw] max-w-[700px]'
+              : 'h-[580px] max-h-[85vh] w-[92vw] sm:w-[420px]'
+          }`}
+          data-testid="panel-ai-assistant"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-[hsl(var(--border))] bg-[#163625] px-4 py-3.5 text-white">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-full bg-[#f4a024] text-white shadow-xs">
+                <Bot size={18} />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight">Farm2Fork Assistant</h3>
+                <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-400" />
+                  <span>
+                    {status?.ollama_available && status.configured_provider === 'ollama'
+                      ? 'Local Ollama'
+                      : status?.gemini_configured
+                        ? 'Gemini'
+                        : 'Local AI'}
+                  </span>
+                  {status?.fallback_available && (
+                    <span className="rounded bg-white/15 px-1 py-0.2 text-[9px] text-zinc-200">
+                      Fallback Ready
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 text-zinc-300">
+              <button
+                type="button"
+                onClick={handleClear}
+                title="Clear conversation"
+                className="rounded-lg p-1.5 hover:bg-white/10 hover:text-white"
+                aria-label="Clear chat"
+              >
+                <RefreshCw size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? 'Minimize' : 'Maximize'}
+                className="hidden rounded-lg p-1.5 sm:block hover:bg-white/10 hover:text-white"
+                aria-label="Resize panel"
+              >
+                {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                title="Close"
+                className="rounded-lg p-1.5 hover:bg-white/10 hover:text-white"
+                aria-label="Close assistant"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div
+            ref={scrollRef}
+            className="flex-1 space-y-3.5 overflow-y-auto p-4 text-xs leading-relaxed sm:text-sm"
+          >
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.sender === 'assistant' && (
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#163625] text-white">
+                    <Bot size={13} />
+                  </span>
+                )}
+
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-2xs ${
+                    msg.sender === 'user'
+                      ? 'rounded-tr-xs bg-[#163625] text-white'
+                      : 'rounded-tl-xs border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <div
+                    className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${
+                      msg.sender === 'user' ? 'text-zinc-300' : 'text-[hsl(var(--muted-foreground))]'
+                    }`}
+                  >
+                    {msg.isFallback && (
+                      <span className="rounded bg-amber-500/20 px-1 text-amber-700 dark:text-amber-300">
+                        Ollama fallback
+                      </span>
+                    )}
+                    <span>{msg.timestamp}</span>
+                  </div>
+                </div>
+
+                {msg.sender === 'user' && (
+                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#f4a024] text-white">
+                    <User size={13} />
+                  </span>
+                )}
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex items-center gap-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[#163625] text-white">
+                  <Bot size={13} />
+                </span>
+                <span className="flex items-center gap-1.5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-3 py-2">
+                  <Loader2 size={13} className="animate-spin text-[#f4a024]" />
+                  <span>Thinking...</span>
+                </span>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                <AlertCircle size={15} className="mt-0.5 shrink-0 text-red-600" />
+                <div className="flex-1">
+                  <p className="font-semibold">{errorMessage}</p>
+                  <p className="mt-0.5 text-[11px] text-red-700 dark:text-red-400">
+                    The marketplace remains fully operational. You can try again in a moment.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Suggestion Chips */}
+          {suggestions.length > 0 && !isLoading && (
+            <div className="border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+                {suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => void handleSendMessage(suggestion)}
+                    className="shrink-0 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-2.5 py-1 text-left font-medium text-[hsl(var(--foreground))] transition-colors hover:border-[#f4a024] hover:bg-[#f4a024]/10"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Input Area */}
+          <form
+            onSubmit={handleSubmit}
+            className="flex items-center gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3"
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask a question about Farm2Fork..."
+              disabled={isLoading}
+              className="h-10 flex-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-3.5 text-xs text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:border-[#f4a024] focus:outline-hidden sm:text-sm"
+              data-testid="input-ai-assistant"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              className="flex size-10 items-center justify-center rounded-xl bg-[#163625] text-white transition-opacity hover:bg-[#1a412c] disabled:opacity-40"
+              aria-label="Send message"
+              data-testid="button-ai-assistant-send"
+            >
+              {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </form>
+        </aside>
+      )}
+    </>
+  );
+}

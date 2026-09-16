@@ -106,6 +106,14 @@ class Settings:
     market_data_min_refresh_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_MIN_REFRESH_SECONDS", 60))
     market_data_rate_limit_cooldown_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_RATE_LIMIT_COOLDOWN_SECONDS", 300))
     market_data_max_cooldown_seconds: int = field(default_factory=lambda: _positive_int_env("MARKET_DATA_MAX_COOLDOWN_SECONDS", 3600))
+    ai_provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "gemini").strip().lower() or "gemini")
+    gemini_api_key: str = field(default_factory=lambda: _optional_env("GEMINI_API_KEY"))
+    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash")
+    ai_timeout_seconds: int = field(default_factory=lambda: _positive_int_env("AI_TIMEOUT_SECONDS", 20))
+    ai_max_output_tokens: int = field(default_factory=lambda: _positive_int_env("AI_MAX_OUTPUT_TOKENS", 1024))
+    ai_max_requests_per_minute: int = field(default_factory=lambda: _positive_int_env("AI_MAX_REQUESTS_PER_MINUTE", 30))
+    ollama_base_url: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip().rstrip("/") or "http://127.0.0.1:11434")
+    ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "llama3.2").strip() or "llama3.2")
 
 
 settings = Settings()

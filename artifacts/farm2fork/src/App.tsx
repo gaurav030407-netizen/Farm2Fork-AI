@@ -15,6 +15,7 @@ import { AdminLogin, BuyerDashboard, CropDetail, CropListings, FarmerDashboard, 
 import { AdminPage } from '@/pages/admin';
 import { AdminEditorialPage } from '@/pages/admin-editorial';
 import { DriverDashboard } from '@/pages/driver';
+import { AiAssistantDrawer } from '@/components/ai/ai-assistant-drawer';
 import {
   Route,
   Switch,
@@ -129,6 +130,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <Router />
               <MessageNotificationWatcher />
+              <AiAssistantDrawer />
             </WouterRouter>
           </LanguageProvider>
           <Toaster />

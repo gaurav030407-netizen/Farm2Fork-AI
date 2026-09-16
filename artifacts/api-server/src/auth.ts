@@ -104,6 +104,15 @@ export const requireAuth: RequestHandler = async (request, response, next) => {
   next();
 };
 
+export const optionalAuth: RequestHandler = async (request, response, next) => {
+  const token = await tokenFromRequest(request);
+  const user = token ? await userFromToken(token) : null;
+  if (user) {
+    response.locals.user = user;
+  }
+  next();
+};
+
 export function requireRole(...roles: AppRole[]): RequestHandler {
   return (request, response, next) => {
     const user = response.locals.user as AuthenticatedUser | undefined;
