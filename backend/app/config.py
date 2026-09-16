@@ -113,7 +113,7 @@ class Settings:
     ai_max_output_tokens: int = field(default_factory=lambda: _positive_int_env("AI_MAX_OUTPUT_TOKENS", 1024))
     ai_max_requests_per_minute: int = field(default_factory=lambda: _positive_int_env("AI_MAX_REQUESTS_PER_MINUTE", 30))
     ollama_base_url: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip().rstrip("/") or "http://127.0.0.1:11434")
-    ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "llama3.2").strip() or "llama3.2")
+    ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "farm2fork").strip() or "farm2fork")
 
 
 settings = Settings()
