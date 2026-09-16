@@ -389,9 +389,54 @@
   .stagger-in:nth-child(3) { animation-delay: 100ms; }
   .stagger-in:nth-child(4) { animation-delay: 150ms; }
   .stagger-in:nth-child(5) { animation-delay: 200ms; }
+
+  .animate-ai-float {
+    animation: ai-float 3.5s ease-in-out infinite;
+  }
+  .animate-ai-pulse-slow {
+    animation: ai-pulse-ring 2.8s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+  }
+  .animate-ai-pulse-delayed {
+    animation: ai-pulse-ring 2.8s cubic-bezier(0.2, 0.6, 0.35, 1) 1.2s infinite;
+  }
+  .animate-ai-badge {
+    animation: ai-badge-bounce 2.6s ease-in-out infinite;
+  }
+  .animate-ai-spin-slow {
+    animation: ai-spin-slow 12s linear infinite;
+  }
+  .animate-ai-glow {
+    animation: ai-glow 3s ease-in-out infinite alternate;
+  }
 }
 
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ai-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes ai-pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.75; }
+  60% { transform: scale(1.45); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+@keyframes ai-badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes ai-spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ai-glow {
+  0% { box-shadow: 0 0 15px rgba(244, 160, 36, 0.3), 0 0 30px rgba(22, 54, 37, 0.4); }
+  100% { box-shadow: 0 0 25px rgba(244, 160, 36, 0.6), 0 0 45px rgba(16, 185, 129, 0.5); }
 }

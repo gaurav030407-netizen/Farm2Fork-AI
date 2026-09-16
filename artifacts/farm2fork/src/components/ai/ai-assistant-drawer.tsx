@@ -116,6 +116,23 @@ export function AiAssistantDrawer() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
+  const [showCallout, setShowCallout] = useState(true);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  const tips = [
+    '🌾 Real APMC Mandi Rates & Decision Support',
+    '💡 Ask: "What is today’s tomato modal price?"',
+    '🥔 Crop ≠ Variety: Need fair pricing advice?',
+    '✨ 24/7 AI Assistant • Ask anything anytime!',
+  ];
+
+  useEffect(() => {
+    if (!showCallout) return;
+    const interval = setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % tips.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [showCallout, tips.length]);
 
   const { appRole, isAuthenticated, profile } = useAuth();
   const [location] = useLocation();
@@ -306,49 +323,126 @@ export function AiAssistantDrawer() {
 
   return (
     <>
-      {/* Floating Button in Bottom-Right Corner */}
+      {/* Creative Animated Floating AI Bot Widget in Bottom-Right Corner */}
       {!isOpen && (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[#163625] px-4 py-3 text-white shadow-xl ring-2 ring-[#f4a024]/40 transition-all hover:scale-105 hover:bg-[#1a412c] focus:outline-hidden"
-          aria-label="Ask Farm2Fork AI Assistant"
-          data-testid="button-ai-assistant-toggle"
-        >
-          <span className="relative flex size-6 items-center justify-center rounded-full bg-[#f4a024] text-white">
-            <Sparkles size={14} />
-          </span>
-          <span className="text-sm font-semibold tracking-tight">Ask Farm2Fork</span>
-        </button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5 select-none">
+          {/* Animated Interactive Speech Bubble Callout */}
+          {showCallout && (
+            <div className="animate-ai-float relative flex max-w-[290px] items-center gap-2.5 rounded-2xl border border-[#f4a024]/50 bg-[#091f13]/95 px-3.5 py-2.5 text-xs text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-md transition-all sm:max-w-[320px]">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#f4a024] to-amber-300 text-[#091f13] shadow-md">
+                <Sparkles size={14} className="animate-pulse" />
+              </div>
+              <div
+                className="flex-1 cursor-pointer"
+                onClick={() => setIsOpen(true)}
+              >
+                <p className="font-semibold text-zinc-100 transition-opacity duration-300">
+                  {tips[tipIndex]}
+                </p>
+                <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#f4a024]">
+                  Tap to ask AI assistant <span className="text-xs">→</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCallout(false);
+                }}
+                className="rounded-full p-1 text-zinc-400 hover:bg-white/10 hover:text-white"
+                aria-label="Dismiss message"
+              >
+                <X size={13} />
+              </button>
+              {/* Speech pointer triangle */}
+              <div className="absolute -bottom-1.5 right-8 size-3 rotate-45 border-b border-r border-[#f4a024]/50 bg-[#091f13]" />
+            </div>
+          )}
+
+          {/* Glowing Animated Bot Launcher */}
+          <div className="group relative flex items-center">
+            {/* Multi-layered pulsating animated radar aura */}
+            <span className="animate-ai-pulse-slow absolute -inset-2 rounded-full bg-gradient-to-r from-emerald-500/40 via-[#f4a024]/40 to-emerald-500/40 blur-sm pointer-events-none" />
+            <span className="animate-ai-pulse-delayed absolute -inset-3.5 rounded-full bg-[#f4a024]/25 blur-md pointer-events-none" />
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              className="relative flex items-center gap-3 rounded-full border border-[#f4a024]/70 bg-gradient-to-r from-[#091f13] via-[#143322] to-[#1c472f] py-2.5 pl-3 pr-5 text-white shadow-[0_12px_36px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:border-[#f4a024] hover:shadow-[0_0_35px_rgba(244,160,36,0.55)] focus:outline-hidden active:scale-95"
+              aria-label="Ask Farm2Fork AI Assistant"
+              data-testid="button-ai-assistant-toggle"
+            >
+              {/* Bot Mascot Avatar with Orbiting Ring */}
+              <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#f4a024] via-amber-400 to-amber-200 text-[#091f13] shadow-md ring-2 ring-white/30">
+                <div className="animate-ai-spin-slow absolute inset-0 rounded-full border border-dashed border-amber-800/40" />
+                <Bot size={21} className="transition-transform duration-300 group-hover:scale-115 group-hover:-rotate-6" />
+
+                {/* Blinking Live Online Green LED Dot */}
+                <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-80" />
+                  <span className="relative inline-flex size-2.5 rounded-full border-2 border-[#143322] bg-emerald-400" />
+                </span>
+              </div>
+
+              {/* Text Label & Live Badge */}
+              <div className="flex flex-col items-start text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-bold tracking-tight text-white drop-shadow-xs">
+                    Farm2Fork AI
+                  </span>
+                  <span className="rounded-full bg-gradient-to-r from-[#f4a024] to-amber-400 px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wider text-[#091f13] shadow-xs">
+                    Online
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-emerald-200/90 transition-colors group-hover:text-amber-200">
+                  Mandi Rates & Crop Guide
+                </span>
+              </div>
+
+              {/* Sparkle micro icon with hover tilt */}
+              <span className="text-amber-300 transition-transform duration-300 group-hover:rotate-45 group-hover:scale-125">
+                <Sparkles size={16} />
+              </span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Slide-over Drawer / Panel */}
       {isOpen && (
         <aside
           aria-label="Farm2Fork AI Assistant"
-          className={`fixed bottom-4 right-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-2xl transition-all duration-200 ${
+          className={`fixed bottom-4 right-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#f4a024]/40 bg-[hsl(var(--card))] shadow-[0_15px_50px_rgba(0,0,0,0.55)] transition-all duration-200 ${
             isExpanded
               ? 'h-[85vh] w-[95vw] max-w-[700px]'
-              : 'h-[580px] max-h-[85vh] w-[92vw] sm:w-[420px]'
+              : 'h-[590px] max-h-[85vh] w-[92vw] sm:w-[430px]'
           }`}
           data-testid="panel-ai-assistant"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[hsl(var(--border))] bg-[#163625] px-4 py-3.5 text-white">
+          <div className="flex items-center justify-between border-b border-[#f4a024]/30 bg-gradient-to-r from-[#091f13] via-[#143322] to-[#1c472f] px-4 py-3.5 text-white shadow-md">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-full bg-[#f4a024] text-white shadow-xs">
-                <Bot size={18} />
-              </span>
+              <div className="relative flex size-9 items-center justify-center rounded-full bg-gradient-to-tr from-[#f4a024] to-amber-300 text-[#091f13] shadow-md ring-2 ring-white/20">
+                <Bot size={20} />
+                <span className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+                </span>
+              </div>
               <div>
-                <h3 className="text-sm font-bold tracking-tight">Farm2Fork Assistant</h3>
-                <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
-                  <span className="inline-block size-1.5 rounded-full bg-emerald-400" />
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-bold tracking-tight text-white">Farm2Fork AI Guide</h3>
+                  <span className="rounded-full border border-[#f4a024]/40 bg-[#f4a024]/20 px-1.5 py-0.2 text-[9px] font-bold text-[#f4a024]">
+                    24/7
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-200/80">
                   <span>
                     {status?.ollama_available && status.configured_provider === 'ollama'
-                      ? 'Local Ollama'
+                      ? 'Local Ollama Model'
                       : status?.gemini_configured
-                        ? 'Gemini'
-                        : 'Local AI'}
+                        ? 'Gemini Cloud AI'
+                        : 'Autonomous Offline AI'}
                   </span>
                   {status?.fallback_available && (
                     <span className="rounded bg-white/15 px-1 py-0.2 text-[9px] text-zinc-200">
